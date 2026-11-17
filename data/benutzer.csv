@@ -1,0 +1,11 @@
+benutzer,name,abteilung,status,letzte_anmeldung
+MMUSTER,Max Mustermann,Kreditorenbuchhaltung,aktiv,2026-11-14
+AWEBER,Anna Weber,Einkauf,aktiv,2026-11-13
+TSCHMIDT,Thomas Schmidt,Zahlungsverkehr,aktiv,2026-11-14
+LKRAUSE,Lisa Krause,Vertrieb,aktiv,2026-11-12
+JBECKER,Jonas Becker,IT-Basis,aktiv,2026-11-14
+SHOFFMANN,Sarah Hoffmann,Hauptbuchhaltung,aktiv,2026-11-11
+PKLEIN,Peter Klein,Wareneingang,aktiv,2026-11-13
+NWOLF,Nina Wolf,Kreditorenbuchhaltung,gesperrt,2026-03-31
+DSCHULZ,Daniel Schulz,Einkauf,aktiv,2025-02-18
+FIREFIGHTER_01,Notfallbenutzer,IT-Basis,aktiv,2026-10-02

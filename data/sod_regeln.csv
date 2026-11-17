@@ -1,0 +1,8 @@
+regel_id,tcode_a,tcode_b,risiko,beschreibung
+SOD01,XK01,F110,hoch,Kreditor anlegen und Zahlung ausführen: Zahlungen an einen fingierten Lieferanten möglich
+SOD02,XK02,F110,hoch,Bankdaten eines Kreditors ändern und Zahlung ausführen: Umleitung von Zahlungen auf eigene Konten möglich
+SOD03,FB60,F110,mittel,Rechnung erfassen und Zahlung ausführen: Zahlung ohne unabhängige Kontrolle möglich
+SOD04,ME21N,ME29N,hoch,Bestellung anlegen und selbst freigeben: Vier-Augen-Prinzip wird umgangen
+SOD05,ME21N,MIGO,mittel,Bestellung anlegen und Wareneingang buchen: Bestätigung nicht gelieferter Ware möglich
+SOD06,VA01,FD32,mittel,Auftrag anlegen und Kreditlimit ändern: Kreditprüfung kann umgangen werden
+SOD07,SU01,PFCG,hoch,Rollen pflegen und Benutzern zuweisen: Selbstvergabe beliebiger Berechtigungen möglich

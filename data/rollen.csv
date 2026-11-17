@@ -1,0 +1,33 @@
+rolle,beschreibung,tcode
+Z_FI_AP_SACHBEARBEITER,Kreditorenbuchhaltung Sachbearbeitung,FB60
+Z_FI_AP_SACHBEARBEITER,Kreditorenbuchhaltung Sachbearbeitung,MIRO
+Z_FI_AP_SACHBEARBEITER,Kreditorenbuchhaltung Sachbearbeitung,FB03
+Z_FI_AP_SACHBEARBEITER,Kreditorenbuchhaltung Sachbearbeitung,XK03
+Z_FI_AP_STAMMDATEN,Kreditorenstammdaten pflegen,XK01
+Z_FI_AP_STAMMDATEN,Kreditorenstammdaten pflegen,XK02
+Z_FI_AP_STAMMDATEN,Kreditorenstammdaten pflegen,XK03
+Z_FI_ZAHLLAUF,Zahlungsverkehr,F110
+Z_FI_ZAHLLAUF,Zahlungsverkehr,FB03
+Z_FI_GL_BUCHHALTUNG,Hauptbuchhaltung,FB50
+Z_FI_GL_BUCHHALTUNG,Hauptbuchhaltung,FB03
+Z_FI_KREDITMANAGEMENT,Kreditmanagement,FD32
+Z_MM_EINKAUF,Einkauf,ME21N
+Z_MM_EINKAUF,Einkauf,ME23N
+Z_MM_EINKAUF,Einkauf,XK03
+Z_MM_EINKAUF_FREIGABE,Freigabe von Bestellungen,ME29N
+Z_MM_EINKAUF_FREIGABE,Freigabe von Bestellungen,ME23N
+Z_MM_WARENEINGANG,Wareneingang,MIGO
+Z_MM_WARENEINGANG,Wareneingang,ME23N
+Z_SD_VERTRIEB,Vertrieb Auftragserfassung,VA01
+Z_SD_VERTRIEB,Vertrieb Auftragserfassung,XD01
+Z_BC_BENUTZERADMIN,Benutzerverwaltung,SU01
+Z_BC_BENUTZERADMIN,Benutzerverwaltung,SUIM
+Z_BC_ROLLENADMIN,Rollenverwaltung,PFCG
+Z_BC_ROLLENADMIN,Rollenverwaltung,SUIM
+Z_BC_ENTWICKLER,Entwicklung,SE38
+Z_BC_ENTWICKLER,Entwicklung,SE16N
+Z_BC_ENTWICKLER,Entwicklung,SM30
+Z_DISPLAY_ALL,Anzeige übergreifend,SE16N
+Z_DISPLAY_ALL,Anzeige übergreifend,FB03
+Z_DISPLAY_ALL,Anzeige übergreifend,ME23N
+Z_DISPLAY_ALL,Anzeige übergreifend,XK03

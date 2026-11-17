@@ -1,0 +1,22 @@
+tcode,beschreibung,kritisch
+XK01,Kreditor anlegen (zentral),nein
+XK02,Kreditor ändern (zentral) inklusive Bankdaten,nein
+XK03,Kreditor anzeigen,nein
+FB03,Beleg anzeigen,nein
+FB50,Sachkontenbeleg erfassen,nein
+FB60,Kreditorenrechnung erfassen,nein
+F110,Zahlungsprogramm (Zahllauf) ausführen,ja
+ME21N,Bestellung anlegen,nein
+ME23N,Bestellung anzeigen,nein
+ME29N,Bestellung freigeben,nein
+MIGO,Warenbewegung buchen (Wareneingang),nein
+MIRO,Eingangsrechnung erfassen,nein
+VA01,Kundenauftrag anlegen,nein
+XD01,Debitor anlegen (zentral),nein
+FD32,Kreditlimit eines Debitors ändern,nein
+SU01,Benutzerpflege,ja
+PFCG,Rollenpflege,ja
+SUIM,Infosystem Benutzer und Berechtigungen,nein
+SE16N,Allgemeine Tabellenanzeige,ja
+SM30,Tabellenpflege,ja
+SE38,ABAP-Editor,ja

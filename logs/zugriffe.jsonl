@@ -1,9 +1,0 @@
-{"zeit": "2026-11-17T17:48:13", "werkzeug": "sod_pruefen", "eingabe": {"benutzer": "MMUSTER"}, "erfolgreich": true}
-{"zeit": "2026-11-17T17:48:13", "werkzeug": "sod_pruefen", "eingabe": {"benutzer": "Anna Weber"}, "erfolgreich": true}
-{"zeit": "2026-11-17T17:48:14", "werkzeug": "sod_pruefen", "eingabe": {"benutzer": "PKLEIN"}, "erfolgreich": true}
-{"zeit": "2026-11-17T17:49:25", "werkzeug": "sod_pruefen", "eingabe": {"benutzer": "MMUSTER"}, "erfolgreich": true}
-{"zeit": "2026-11-17T17:49:28", "werkzeug": "benutzer_rollen", "eingabe": {"benutzer": "MMUSTER"}, "erfolgreich": true}
-{"zeit": "2026-11-17T17:50:12", "werkzeug": "benutzer_rollen", "eingabe": {"benutzer": "Anna Weber"}, "erfolgreich": true}
-{"zeit": "2026-11-17T17:50:12", "werkzeug": "sod_pruefen", "eingabe": {"benutzer": "Anna Weber"}, "erfolgreich": true}
-{"zeit": "2026-11-17T18:02:24", "werkzeug": "sod_pruefen", "eingabe": {"benutzer": "MMUSTER"}, "erfolgreich": true}
-{"zeit": "2026-11-17T18:02:24", "werkzeug": "benutzer_rollen", "eingabe": {"benutzer": "MMUSTER"}, "erfolgreich": true}

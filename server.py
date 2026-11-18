@@ -45,6 +45,13 @@ def transaktionen_von(kennung):
     tcodes = sorted({r["tcode"] for r in lade("rollen.csv") if r["rolle"] in rollen})
     return rollen, tcodes
 
+def sod_konflikte(kennung):
+    """Liefert alle SoD-Regeln, deren beide Transaktionen der Benutzer besitzt."""
+    _, tcodes = transaktionen_von(kennung)
+    return [
+        regel for regel in lade("sod_regeln.csv")
+        if regel["tcode_a"] in tcodes and regel["tcode_b"] in tcodes
+    ]
 
 @mcp.tool()
 def benutzer_rollen(benutzer: str) -> dict:
@@ -69,11 +76,8 @@ def sod_pruefen(benutzer: str) -> dict:
     if stamm is None:
         ergebnis = {"fehler": f"Benutzer {benutzer} nicht gefunden"}
     else:
-        _, tcodes = transaktionen_von(stamm["benutzer"])
-        konflikte = [
-            regel for regel in lade("sod_regeln.csv")
-            if regel["tcode_a"] in tcodes and regel["tcode_b"] in tcodes
-        ]
+        konflikte = sod_konflikte(stamm["benutzer"])
+        
         ergebnis = {
             "benutzer": stamm["benutzer"],
             "name": stamm["name"],
@@ -154,6 +158,63 @@ def kritische_berechtigungen() -> dict:
     treffer.sort(key=lambda t: len(t["kritische_transaktionen"]), reverse=True)
     ergebnis = {"anzahl": len(treffer), "benutzer": treffer}
     protokolliere("kritische_berechtigungen", {}, ergebnis)
+    return ergebnis
+
+REIHENFOLGE = {"hoch": 0, "mittel": 1, "prüfen": 2}
+
+
+@mcp.tool()
+def risiko_uebersicht(inaktiv_tage: int = 90) -> dict:
+    """Führt alle Prüfungen über alle Benutzer zusammen: SoD-Konflikte, gesperrte Benutzer
+    mit Rollen, inaktive Benutzer und kritische Berechtigungen. Liefert die Befunde nach
+    Priorität sortiert. Die Priorität folgt festen Regeln. Nur lesend."""
+    befunde = []
+
+    for b in lade("benutzer.csv"):
+        for regel in sod_konflikte(b["benutzer"]):
+            befunde.append({
+                "prioritaet": regel["risiko"],
+                "kategorie": "SoD-Konflikt",
+                "benutzer": b["benutzer"],
+                "name": b["name"],
+                "detail": f'{regel["regel_id"]}: {regel["beschreibung"]}',
+            })
+
+    for b in gesperrte_mit_rollen()["benutzer"]:
+        befunde.append({
+            "prioritaet": "hoch",
+            "kategorie": "Gesperrt mit Rollen",
+            "benutzer": b["benutzer"],
+            "name": b["name"],
+            "detail": "Rollen: " + ", ".join(b["rollen"]),
+        })
+
+    for b in inaktive_benutzer(inaktiv_tage)["benutzer"]:
+        befunde.append({
+            "prioritaet": "mittel",
+            "kategorie": "Inaktiver Benutzer",
+            "benutzer": b["benutzer"],
+            "name": b["name"],
+            "detail": f'{b["tage_inaktiv"]} Tage ohne Anmeldung, Rollen: ' + ", ".join(b["rollen"]),
+        })
+
+    for b in kritische_berechtigungen()["benutzer"]:
+        befunde.append({
+            "prioritaet": "prüfen",
+            "kategorie": "Kritische Berechtigung",
+            "benutzer": b["benutzer"],
+            "name": b["name"],
+            "detail": f'{b["abteilung"]}: ' + ", ".join(t["tcode"] for t in b["kritische_transaktionen"]),
+        })
+
+    befunde.sort(key=lambda x: REIHENFOLGE[x["prioritaet"]])
+    ergebnis = {
+        "stand": date.today().isoformat(),
+        "anzahl_befunde": len(befunde),
+        "nach_prioritaet": {p: sum(1 for x in befunde if x["prioritaet"] == p) for p in REIHENFOLGE},
+        "befunde": befunde,
+    }
+    protokolliere("risiko_uebersicht", {"inaktiv_tage": inaktiv_tage}, ergebnis)
     return ergebnis
 
 if __name__ == "__main__":

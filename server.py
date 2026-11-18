@@ -129,5 +129,32 @@ def gesperrte_mit_rollen() -> dict:
     protokolliere("gesperrte_mit_rollen", {}, ergebnis)
     return ergebnis
 
+@mcp.tool()
+def kritische_berechtigungen() -> dict:
+    """Listet alle Benutzer mit kritischen Transaktionen, z. B. Benutzerpflege, Rollenpflege,
+    ABAP-Editor, Tabellenpflege oder Zahllauf. Ob die Berechtigung zur Tätigkeit passt,
+    beurteilt ein Mensch anhand von Abteilung und Aufgabe. Nur lesend."""
+    kritisch = {
+        t["tcode"]: t["beschreibung"]
+        for t in lade("transaktionen.csv")
+        if t["kritisch"] == "ja"
+    }
+    treffer = []
+    for b in lade("benutzer.csv"):
+        _, tcodes = transaktionen_von(b["benutzer"])
+        gefunden = [{"tcode": t, "beschreibung": kritisch[t]} for t in tcodes if t in kritisch]
+        if gefunden:
+            treffer.append({
+                "benutzer": b["benutzer"],
+                "name": b["name"],
+                "abteilung": b["abteilung"],
+                "status": b["status"],
+                "kritische_transaktionen": gefunden,
+            })
+    treffer.sort(key=lambda t: len(t["kritische_transaktionen"]), reverse=True)
+    ergebnis = {"anzahl": len(treffer), "benutzer": treffer}
+    protokolliere("kritische_berechtigungen", {}, ergebnis)
+    return ergebnis
+
 if __name__ == "__main__":
     mcp.run(transport="stdio")

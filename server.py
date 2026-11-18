@@ -107,6 +107,27 @@ def inaktive_benutzer(tage: int = 90) -> dict:
     ergebnis = {"schwelle_tage": tage, "anzahl": len(treffer), "benutzer": treffer}
     protokolliere("inaktive_benutzer", {"tage": tage}, ergebnis)
     return ergebnis
+@mcp.tool()
+def gesperrte_mit_rollen() -> dict:
+    """Findet gesperrte Benutzer, denen noch Rollen zugeordnet sind, z. B. ausgeschiedene
+    Mitarbeiter, deren Berechtigungen nicht entzogen wurden. Nur lesend."""
+    treffer = []
+    for b in lade("benutzer.csv"):
+        if b["status"] != "gesperrt":
+            continue
+        rollen, tcodes = transaktionen_von(b["benutzer"])
+        if rollen:
+            treffer.append({
+                "benutzer": b["benutzer"],
+                "name": b["name"],
+                "abteilung": b["abteilung"],
+                "letzte_anmeldung": b["letzte_anmeldung"],
+                "rollen": rollen,
+                "transaktionen": tcodes,
+            })
+    ergebnis = {"anzahl": len(treffer), "benutzer": treffer}
+    protokolliere("gesperrte_mit_rollen", {}, ergebnis)
+    return ergebnis
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")

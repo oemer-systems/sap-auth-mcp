@@ -9,9 +9,11 @@ st.caption("Fragen zu Benutzern, Rollen und SoD-Konflikten. "
 
 with st.sidebar:
     st.subheader("Beispielfragen")
-    st.markdown("- Hat MMUSTER SoD-Konflikte?\n"
-                "- Welche Rollen hat Anna Weber?\n"
-                "- Vergleiche LKRAUSE und TSCHMIDT.")
+    st.markdown("- Erstelle eine Übersicht aller Berechtigungsrisiken.\n"
+                "- Gibt es ausgeschiedene Mitarbeiter, die noch Rechte haben?\n"
+                "- Wer war seit 30 Tagen nicht angemeldet?\n"
+                "- Wer hat kritische Berechtigungen, und passt das zur Abteilung?\n"
+                "- Hat MMUSTER SoD-Konflikte?")
     if st.button("Neues Gespräch"):
         st.session_state.clear()
         st.rerun()

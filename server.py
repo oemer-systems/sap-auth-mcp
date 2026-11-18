@@ -1,6 +1,6 @@
 import csv
 import json
-from datetime import datetime
+from datetime import date, datetime 
 from pathlib import Path
 
 from mcp.server.mcpserver import MCPServer
@@ -83,6 +83,30 @@ def sod_pruefen(benutzer: str) -> dict:
     protokolliere("sod_pruefen", {"benutzer": benutzer}, ergebnis)
     return ergebnis
 
+@mcp.tool()
+def inaktive_benutzer(tage: int = 90) -> dict:
+    """Findet aktive Benutzer, die sich seit mindestens `tage` Tagen nicht angemeldet haben,
+    aber noch Rollen besitzen. Typischer Prüfpunkt der Revision. Nur lesend."""
+    heute = date.today()
+    treffer = []
+    for b in lade("benutzer.csv"):
+        if b["status"] != "aktiv":
+            continue
+        inaktiv_seit = (heute - date.fromisoformat(b["letzte_anmeldung"])).days
+        rollen, _ = transaktionen_von(b["benutzer"])
+        if inaktiv_seit >= tage and rollen:
+            treffer.append({
+                "benutzer": b["benutzer"],
+                "name": b["name"],
+                "abteilung": b["abteilung"],
+                "letzte_anmeldung": b["letzte_anmeldung"],
+                "tage_inaktiv": inaktiv_seit,
+                "rollen": rollen,
+            })
+    treffer.sort(key=lambda t: t["tage_inaktiv"], reverse=True)
+    ergebnis = {"schwelle_tage": tage, "anzahl": len(treffer), "benutzer": treffer}
+    protokolliere("inaktive_benutzer", {"tage": tage}, ergebnis)
+    return ergebnis
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")

@@ -20,3 +20,9 @@ SUIM,Infosystem Benutzer und Berechtigungen,nein
 SE16N,Allgemeine Tabellenanzeige,ja
 SM30,Tabellenpflege,ja
 SE38,ABAP-Editor,ja
+FK01,Kreditor anlegen (Buchhaltung),nein
+FK02,Kreditor ändern (Buchhaltung),nein
+BP,Geschäftspartner pflegen (S/4HANA),nein
+F-53,Zahlungsausgang manuell buchen,ja
+UKM_BP,Kreditmanagement Geschäftspartner (S/4HANA),nein
+SU10,Benutzer-Massenpflege,ja

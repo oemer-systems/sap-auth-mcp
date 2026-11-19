@@ -45,13 +45,27 @@ def transaktionen_von(kennung):
     tcodes = sorted({r["tcode"] for r in lade("rollen.csv") if r["rolle"] in rollen})
     return rollen, tcodes
 
+def funktionen_von(tcodes):
+    """Ordnet Transaktionen den Funktionen des Regelwerks zu.
+    Ergebnis: {Funktion: [Transaktionen des Benutzers, die dazu gehören]}."""
+    zuordnung = {}
+    for f in lade("funktionen.csv"):
+        if f["tcode"] in tcodes:
+            zuordnung.setdefault(f["funktion_id"], []).append(f["tcode"])
+    return zuordnung
+
+
 def sod_konflikte(kennung):
-    """Liefert alle SoD-Regeln, deren beide Transaktionen der Benutzer besitzt."""
+    """Liefert alle SoD-Regeln, bei denen der Benutzer beide Funktionen besitzt,
+    zusammen mit den Transaktionen, die den Konflikt auslösen."""
     _, tcodes = transaktionen_von(kennung)
-    return [
-        regel for regel in lade("sod_regeln.csv")
-        if regel["tcode_a"] in tcodes and regel["tcode_b"] in tcodes
-    ]
+    funktionen = funktionen_von(tcodes)
+    konflikte = []
+    for regel in lade("sod_regeln.csv"):
+        a, b = regel["funktion_a"], regel["funktion_b"]
+        if a in funktionen and b in funktionen:
+            konflikte.append({**regel, "transaktionen_a": funktionen[a], "transaktionen_b": funktionen[b]})
+    return konflikte
 
 @mcp.tool()
 def benutzer_rollen(benutzer: str) -> dict:
@@ -177,7 +191,8 @@ def risiko_uebersicht(inaktiv_tage: int = 90) -> dict:
                 "kategorie": "SoD-Konflikt",
                 "benutzer": b["benutzer"],
                 "name": b["name"],
-                "detail": f'{regel["regel_id"]}: {regel["beschreibung"]}',
+                "detail": f'{regel["regel_id"]}: {regel["beschreibung"]} '
+                 f'(über {", ".join(regel["transaktionen_a"])} und {", ".join(regel["transaktionen_b"])})',
             })
 
     for b in gesperrte_mit_rollen()["benutzer"]:

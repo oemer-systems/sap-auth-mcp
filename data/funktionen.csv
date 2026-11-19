@@ -1,0 +1,20 @@
+funktion_id,beschreibung,tcode
+F_KRED_ANLEGEN,Kreditor anlegen,XK01
+F_KRED_ANLEGEN,Kreditor anlegen,FK01
+F_KRED_ANLEGEN,Kreditor anlegen,BP
+F_KRED_AENDERN,Kreditor einschließlich Bankdaten ändern,XK02
+F_KRED_AENDERN,Kreditor einschließlich Bankdaten ändern,FK02
+F_KRED_AENDERN,Kreditor einschließlich Bankdaten ändern,BP
+F_RECHNUNG,Kreditorenrechnung erfassen,FB60
+F_RECHNUNG,Kreditorenrechnung erfassen,MIRO
+F_ZAHLUNG,Zahlung ausführen,F110
+F_ZAHLUNG,Zahlung ausführen,F-53
+F_BEST_ANLEGEN,Bestellung anlegen,ME21N
+F_BEST_FREIGEBEN,Bestellung freigeben,ME29N
+F_WARENEINGANG,Wareneingang buchen,MIGO
+F_AUFTRAG,Kundenauftrag anlegen,VA01
+F_KREDITLIMIT,Kreditlimit ändern,FD32
+F_KREDITLIMIT,Kreditlimit ändern,UKM_BP
+F_BENUTZERPFLEGE,Benutzer pflegen,SU01
+F_BENUTZERPFLEGE,Benutzer pflegen,SU10
+F_ROLLENPFLEGE,Rollen pflegen,PFCG

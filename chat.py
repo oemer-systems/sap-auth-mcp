@@ -1,7 +1,11 @@
-from agent import frage_stellen
+import sys
 
+from agent import LOKALES_MODELL, frage_stellen
+
+modus = "lokal" if "lokal" in sys.argv[1:] else "cloud"
 verlauf = []
-print("SAP-Berechtigungsassistent. 'exit' zum Beenden.\n")
+print(f"SAP-Berechtigungsassistent ({'lokal mit ' + LOKALES_MODELL if modus == 'lokal' else 'Cloud mit Claude'}). "
+      "'exit' zum Beenden.\n")
 
 while True:
     frage = input("Du: ").strip()
@@ -9,7 +13,7 @@ while True:
         break
     if not frage:
         continue
-    antwort, aufrufe = frage_stellen(verlauf, frage)
+    antwort, aufrufe = frage_stellen(verlauf, frage, modus)
     for aufruf in aufrufe:
         print(f"  [Werkzeug] {aufruf}")
     print(f"\nKI: {antwort}\n")

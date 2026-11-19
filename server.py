@@ -54,6 +54,15 @@ def funktionen_von(tcodes):
             zuordnung.setdefault(f["funktion_id"], []).append(f["tcode"])
     return zuordnung
 
+def ausnahme_status(kennung, regel_id):
+    """Sucht eine genehmigte Ausnahme zu einem Konflikt und bewertet sie:
+    offen (keine Ausnahme), abgesichert (gültig) oder ausnahme_abgelaufen."""
+    for a in lade("ausnahmen.csv"):
+        if a["benutzer"] == kennung and a["regel_id"] == regel_id:
+            if date.fromisoformat(a["gueltig_bis"]) >= date.today():
+                return "abgesichert", a
+            return "ausnahme_abgelaufen", a
+    return "offen", None
 
 def sod_konflikte(kennung):
     """Liefert alle SoD-Regeln, bei denen der Benutzer beide Funktionen besitzt,
@@ -64,7 +73,15 @@ def sod_konflikte(kennung):
     for regel in lade("sod_regeln.csv"):
         a, b = regel["funktion_a"], regel["funktion_b"]
         if a in funktionen and b in funktionen:
-            konflikte.append({**regel, "transaktionen_a": funktionen[a], "transaktionen_b": funktionen[b]})
+            status, ausnahme = ausnahme_status(kennung, regel["regel_id"])
+            konflikte.append({
+                **regel,
+                "transaktionen_a": funktionen[a],
+                "transaktionen_b": funktionen[b],
+                "status": status,
+                "ausnahme": ausnahme,
+            })
+        
     return konflikte
 
 @mcp.tool()
@@ -96,6 +113,7 @@ def sod_pruefen(benutzer: str) -> dict:
             "benutzer": stamm["benutzer"],
             "name": stamm["name"],
             "anzahl_konflikte": len(konflikte),
+            "davon_offen": sum(1 for k in konflikte if k["status"] != "abgesichert"),
             "konflikte": konflikte,
         }
     protokolliere("sod_pruefen", {"benutzer": benutzer}, ergebnis)
@@ -184,15 +202,26 @@ def risiko_uebersicht(inaktiv_tage: int = 90) -> dict:
     Priorität sortiert. Die Priorität folgt festen Regeln. Nur lesend."""
     befunde = []
 
+    abgesichert = []
     for b in lade("benutzer.csv"):
         for regel in sod_konflikte(b["benutzer"]):
+            if regel["status"] == "abgesichert":
+                abgesichert.append(
+                    f'{b["benutzer"]} {regel["regel_id"]}: {regel["ausnahme"]["kontrolle"]} '
+                    f'(gültig bis {regel["ausnahme"]["gueltig_bis"]})'
+                )
+                continue
+            abgelaufen = regel["status"] == "ausnahme_abgelaufen"
+            detail = (f'{regel["regel_id"]}: {regel["beschreibung"]} '
+                      f'(über {", ".join(regel["transaktionen_a"])} und {", ".join(regel["transaktionen_b"])})')
+            if abgelaufen:
+                detail += f'. Ausnahme abgelaufen am {regel["ausnahme"]["gueltig_bis"]}'
             befunde.append({
-                "prioritaet": regel["risiko"],
-                "kategorie": "SoD-Konflikt",
+                "prioritaet": "hoch" if abgelaufen else regel["risiko"],
+                "kategorie": "Ausnahme abgelaufen" if abgelaufen else "SoD-Konflikt",
                 "benutzer": b["benutzer"],
                 "name": b["name"],
-                "detail": f'{regel["regel_id"]}: {regel["beschreibung"]} '
-                 f'(über {", ".join(regel["transaktionen_a"])} und {", ".join(regel["transaktionen_b"])})',
+                "detail": detail,
             })
 
     for b in gesperrte_mit_rollen()["benutzer"]:
@@ -228,6 +257,7 @@ def risiko_uebersicht(inaktiv_tage: int = 90) -> dict:
         "anzahl_befunde": len(befunde),
         "nach_prioritaet": {p: sum(1 for x in befunde if x["prioritaet"] == p) for p in REIHENFOLGE},
         "befunde": befunde,
+        "abgesicherte_konflikte": abgesichert,
     }
     protokolliere("risiko_uebersicht", {"inaktiv_tage": inaktiv_tage}, ergebnis)
     return ergebnis

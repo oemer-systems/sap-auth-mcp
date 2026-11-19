@@ -1,0 +1,15 @@
+MANDT;AGR_NAME;SPRAS;LINE;TEXT
+100;Z_FI_AP_SACHBEARBEITER;D;00000;Kreditorenbuchhaltung Sachbearbeitung
+100;Z_FI_AP_STAMMDATEN;D;00000;Kreditorenstammdaten pflegen
+100;Z_FI_ZAHLLAUF;D;00000;Zahlungsverkehr
+100;Z_FI_GL_BUCHHALTUNG;D;00000;Hauptbuchhaltung
+100;Z_FI_KREDITMANAGEMENT;D;00000;Kreditmanagement
+100;Z_MM_EINKAUF;D;00000;Einkauf
+100;Z_MM_EINKAUF_FREIGABE;D;00000;Freigabe von Bestellungen
+100;Z_MM_WARENEINGANG;D;00000;Wareneingang
+100;Z_SD_VERTRIEB;D;00000;Vertrieb Auftragserfassung
+100;Z_BC_BENUTZERADMIN;D;00000;Benutzerverwaltung
+100;Z_BC_ROLLENADMIN;D;00000;Rollenverwaltung
+100;Z_BC_ENTWICKLER;D;00000;Entwicklung
+100;Z_DISPLAY_ALL;D;00000;Anzeige übergreifend
+100;Z_S4_GP_PFLEGE;D;00000;Geschäftspartner pflegen (S/4HANA)

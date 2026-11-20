@@ -54,6 +54,15 @@ def funktionen_von(tcodes):
             zuordnung.setdefault(f["funktion_id"], []).append(f["tcode"])
     return zuordnung
 
+def personaldaten(kennung):
+    """Liefert die Personaldaten eines Benutzers aus personal.csv oder None (kein Personalbezug)."""
+    return next((p for p in lade("personal.csv") if p["benutzer"] == kennung), None)
+
+
+def soll_rollen(abteilung):
+    """Liefert die Rollen, die laut Rollenkonzept zu einer Abteilung gehören."""
+    return {z["rolle"] for z in lade("abteilungsrollen.csv") if z["abteilung"] == abteilung}
+
 def ausnahme_status(kennung, regel_id):
     """Sucht eine genehmigte Ausnahme zu einem Konflikt und bewertet sie:
     offen (keine Ausnahme), abgesichert (gültig) oder ausnahme_abgelaufen."""

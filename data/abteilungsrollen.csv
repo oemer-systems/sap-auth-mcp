@@ -1,0 +1,13 @@
+abteilung,rolle
+Kreditorenbuchhaltung,Z_FI_AP_SACHBEARBEITER
+Kreditorenbuchhaltung,Z_FI_AP_STAMMDATEN
+Zahlungsverkehr,Z_FI_ZAHLLAUF
+Hauptbuchhaltung,Z_FI_GL_BUCHHALTUNG
+Einkauf,Z_MM_EINKAUF
+Einkauf,Z_MM_EINKAUF_FREIGABE
+Wareneingang,Z_MM_WARENEINGANG
+Vertrieb,Z_SD_VERTRIEB
+Vertrieb,Z_FI_KREDITMANAGEMENT
+IT-Basis,Z_BC_BENUTZERADMIN
+IT-Basis,Z_BC_ROLLENADMIN
+IT-Basis,Z_BC_ENTWICKLER

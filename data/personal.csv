@@ -1,0 +1,11 @@
+benutzer,personalnummer,abteilung,abteilung_seit,status,austritt
+MMUSTER,00001001,Kreditorenbuchhaltung,2019-03-01,beschäftigt,
+AWEBER,00001002,Vertrieb,2026-10-01,beschäftigt,
+TSCHMIDT,00001003,Zahlungsverkehr,2018-01-10,beschäftigt,
+LKRAUSE,00001004,Vertrieb,2021-04-01,beschäftigt,
+JBECKER,00001005,IT-Basis,2017-09-01,beschäftigt,
+SHOFFMANN,00001006,Hauptbuchhaltung,2019-11-01,beschäftigt,
+PKLEIN,00001007,Wareneingang,2022-02-01,beschäftigt,
+NWOLF,00001008,Kreditorenbuchhaltung,2020-05-01,ausgetreten,2026-04-01
+DSCHULZ,00001009,Einkauf,2023-08-01,ausgetreten,2025-03-01
+KBAUER,00001010,Zahlungsverkehr,2025-01-15,beschäftigt,

@@ -6,8 +6,12 @@ Erwartet im Ordner data/sap_export:
   AGR_USERS.csv   Rollenzuordnungen mit Gültigkeitszeitraum
   AGR_TCODES.csv  Transaktionen je Rolle
   AGR_TEXTS.csv   Rollenbeschreibungen
+  PA0105.csv      Zuordnung Personalnummer zu SAP-Benutzer (Subtyp 0001)
+  PA0000.csv      Personalmaßnahmen: Beschäftigungsstatus, Eintritt, Austritt
+  PA0001.csv      Organisatorische Zuordnung mit Gültigkeit
+  T527X.csv       Bezeichnungen der Organisationseinheiten
 
-Schreibt: data/benutzer.csv, data/benutzer_rollen.csv, data/rollen.csv
+Schreibt: data/benutzer.csv, data/benutzer_rollen.csv, data/rollen.csv, data/personal.csv
 Das Regelwerk (funktionen, sod_regeln, transaktionen, ausnahmen) bleibt unverändert.
 """
 import csv
@@ -45,6 +49,39 @@ def datum(wert):
         except ValueError:
             pass
     raise ValueError(f"Unbekanntes Datumsformat: {wert}")
+
+
+def gueltig(zeile, heute):
+    """Prüft, ob ein Datensatz mit BEGDA und ENDDA heute gilt."""
+    von, bis = datum(zeile.get("BEGDA")), datum(zeile.get("ENDDA"))
+    return (von is None or von <= heute) and (bis is None or bis >= heute)
+
+
+def importiere_personal(heute):
+    """Verknüpft SAP-Benutzer mit Personaldaten: Abteilung laut HR, Beschäftigungsstatus, Austritt."""
+    pernr_zu_benutzer = {
+        z["PERNR"]: z["USRID"]
+        for z in lies("PA0105.csv")
+        if z["SUBTY"] == "0001" and gueltig(z, heute)
+    }
+    org_texte = {t["ORGEH"]: t["ORGTX"] for t in lies("T527X.csv")}
+    massnahmen = [z for z in lies("PA0000.csv") if gueltig(z, heute)]
+    zuordnungen = [z for z in lies("PA0001.csv") if gueltig(z, heute)]
+
+    personal = []
+    for pernr, benutzer in pernr_zu_benutzer.items():
+        status = next((m for m in massnahmen if m["PERNR"] == pernr), None)
+        org = next((o for o in zuordnungen if o["PERNR"] == pernr), None)
+        ausgetreten = status is not None and status["STAT2"] == "0"
+        personal.append({
+            "benutzer": benutzer,
+            "personalnummer": pernr,
+            "abteilung": org_texte.get(org["ORGEH"], org["ORGEH"]) if org else "",
+            "abteilung_seit": datum(org["BEGDA"]).isoformat() if org else "",
+            "status": "ausgetreten" if ausgetreten else "beschäftigt",
+            "austritt": datum(status["BEGDA"]).isoformat() if ausgetreten else "",
+        })
+    return personal
 
 
 def schreibe(datei, felder, zeilen):
@@ -99,10 +136,19 @@ def main():
     schreibe("benutzer_rollen.csv", ["benutzer", "rolle"], zuordnungen)
     schreibe("rollen.csv", ["rolle", "beschreibung", "tcode"], rollen)
 
+    personal = importiere_personal(heute)
+    schreibe("personal.csv",
+             ["benutzer", "personalnummer", "abteilung", "abteilung_seit", "status", "austritt"],
+             personal)
+
     gesperrte = sum(1 for b in benutzer if b["status"] == "gesperrt")
     print(f"Benutzer:          {len(benutzer)} (davon gesperrt: {gesperrte})")
     print(f"Rollenzuordnungen: {len(zuordnungen)} (nicht gültig, übersprungen: {uebersprungen})")
     print(f"Rollen:            {len({r['rolle'] for r in rollen})} mit {len(rollen)} Transaktionen")
+    ohne_personal = sorted({b["benutzer"] for b in benutzer} - {p["benutzer"] for p in personal})
+    ausgetreten = sum(1 for p in personal if p["status"] == "ausgetreten")
+    print(f"Personaldaten:     {len(personal)} Benutzer verknüpft (davon ausgetreten: {ausgetreten})")
+    print(f"Ohne Personalbezug: {', '.join(ohne_personal) or 'keine'}")
 
 
 if __name__ == "__main__":

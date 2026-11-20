@@ -6,6 +6,7 @@ Mit kurzer Zusammenfassung durch das lokale Modell:  python waechter.py --ki
 Der Wächter ist nur lesend. Er schlägt Lösungen vor, entscheiden muss ein Mensch."""
 import argparse
 import json
+import logging
 import os
 import re
 from datetime import datetime
@@ -17,6 +18,7 @@ BASIS = Path(__file__).parent
 ZUSTAND = BASIS / "zustand" / "letzter_lauf.json"
 AUSGABE = BASIS / "berichte"
 LOKALES_MODELL = os.environ.get("LOKALES_MODELL", "qwen3:8b")
+logging.getLogger("httpx").setLevel(logging.WARNING)  # keine Meldung bei jeder Anfrage an Ollama
 
 
 def schluessel(befund):
@@ -54,7 +56,21 @@ def ergaenze_vorschlaege(befunde):
     return befunde
 
 
-def ki_zusammenfassung(neu, erledigt):
+def fakten_text(neu, erledigt, offen_gesamt):
+    """Beschreibt die Änderungen in eindeutigen Sätzen. Diese Fakten erzeugt der Code, nicht die KI."""
+    zeilen = [f"Seit dem letzten Lauf: {len(neu)} neue Befunde, {len(erledigt)} behobene Befunde, "
+              f"{offen_gesamt} Befunde sind insgesamt noch offen."]
+    if erledigt:
+        zeilen.append("BEHOBEN, kein Handlungsbedarf mehr (gute Nachricht):")
+        zeilen += [f"- {k}" for k in erledigt]
+    if neu:
+        zeilen.append("NEU AUFGETRETEN, Handlungsbedarf:")
+        zeilen += [f'- [{b["prioritaet"]}] {schluessel(b)}: {b["detail"]}'
+                   + (f'. Vorschlag: {b["vorschlag"]}' if b.get("vorschlag") else "") for b in neu]
+    return "\n".join(zeilen)
+
+
+def ki_zusammenfassung(neu, erledigt, offen_gesamt):
     """Lässt das lokale Modell die Änderungen in wenigen Sätzen zusammenfassen. Keine Daten gehen nach außen."""
     try:
         import ollama
@@ -62,12 +78,13 @@ def ki_zusammenfassung(neu, erledigt):
             model=LOKALES_MODELL,
             messages=[
                 {"role": "system", "content":
-                    "Du fasst Ergebnisse einer Berechtigungsprüfung für eine Führungskraft zusammen. "
-                    "Nutze ausschließlich die gelieferten Daten. Erfinde keine Namen, Rollen oder Zahlen. "
-                    "Höchstens fünf Sätze, zuerst das Wichtigste. Entscheidungen trifft ein Mensch. "
-                    "Antworte auf Deutsch."},
-                {"role": "user", "content": json.dumps({"neue_befunde": neu, "erledigte_befunde": erledigt},
-                                                       ensure_ascii=False)},
+                    "Du formulierst die Ergebnisse einer Berechtigungsprüfung für eine Führungskraft um. "
+                    "Die gelieferten Fakten sind vollständig und korrekt. Übernimm alle Zahlen genau. "
+                    "Behobene Befunde sind erledigt und bestehen NICHT mehr. Stelle sie als Fortschritt dar. "
+                    "Nur neu aufgetretene Befunde erfordern Handlungsbedarf. "
+                    "Erfinde keine Namen, Rollen oder Zahlen. Höchstens vier Sätze. "
+                    "Entscheidungen trifft ein Mensch. Antworte auf Deutsch."},
+                {"role": "user", "content": fakten_text(neu, erledigt, offen_gesamt)},
             ],
             think=False,
             options={"num_ctx": 16384},
@@ -122,7 +139,7 @@ def lauf(ki=False):
         "zusammenfassung": None,
     }
     if ki and (neu or erledigt):
-        ergebnis["zusammenfassung"] = ki_zusammenfassung(neu, erledigt)
+        ergebnis["zusammenfassung"] = ki_zusammenfassung(neu, erledigt, len(befunde))
 
     AUSGABE.mkdir(exist_ok=True)
     ergebnis["bericht"] = None

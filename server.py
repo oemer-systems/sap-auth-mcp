@@ -281,6 +281,136 @@ def ablaufende_ausnahmen(tage: int = 30) -> dict:
     return ergebnis
 
 
+def tcodes_der_rollen(rollen):
+    """Alle Transaktionen, die in einer Liste von Rollen enthalten sind."""
+    return sorted({r["tcode"] for r in lade("rollen.csv") if r["rolle"] in rollen})
+
+
+def regelverstoesse(tcodes):
+    """IDs aller SoD-Regeln, die eine Menge von Transaktionen verletzt (ohne Ausnahmen)."""
+    funktionen = funktionen_von(tcodes)
+    return [
+        r["regel_id"] for r in lade("sod_regeln.csv")
+        if r["funktion_a"] in funktionen and r["funktion_b"] in funktionen
+    ]
+
+
+def berechne_entzug(kennung, rollen):
+    """Rechnet aus, was der Entzug von Rollen bewirken würde. Ohne Protokoll, ohne Prüfung der Eingabe."""
+    vorher_rollen, vorher_tcodes = transaktionen_von(kennung)
+    nachher_tcodes = tcodes_der_rollen([r for r in vorher_rollen if r not in rollen])
+    verloren = sorted(set(vorher_tcodes) - set(nachher_tcodes))
+
+    vorher_sod = regelverstoesse(vorher_tcodes)
+    nachher_sod = regelverstoesse(nachher_tcodes)
+    geloest = [r for r in vorher_sod if r not in nachher_sod]
+
+    kritisch = {t["tcode"] for t in lade("transaktionen.csv") if t["kritisch"] == "ja"}
+    p = personaldaten(kennung)
+    abteilung_betroffen = sorted(set(rollen) & soll_rollen(p["abteilung"])) if p else []
+
+    if abteilung_betroffen:
+        bewertung = "Achtung: Rollen der eigenen Abteilung betroffen, die Tätigkeit könnte eingeschränkt werden"
+    elif geloest and not nachher_sod:
+        bewertung = "Empfehlenswert: löst alle SoD-Konflikte, ohne Rollen der Abteilung zu berühren"
+    elif geloest:
+        bewertung = "Teilweise wirksam: löst einen Teil der SoD-Konflikte"
+    else:
+        bewertung = "Kein Einfluss auf SoD-Konflikte"
+
+    return {
+        "benutzer": kennung,
+        "entzogene_rollen": rollen,
+        "verlorene_transaktionen": verloren,
+        "verlorene_kritische_transaktionen": sorted(set(verloren) & kritisch),
+        "geloeste_konflikte": geloest,
+        "verbleibende_konflikte": nachher_sod,
+        "rollen_der_abteilung_betroffen": abteilung_betroffen,
+        "bewertung": bewertung,
+    }
+
+
+@mcp.tool()
+def simuliere_entzug(benutzer: str, rollen: list[str]) -> dict:
+    """Simuliert, was passieren würde, wenn einem Benutzer Rollen entzogen würden: welche
+    Transaktionen wegfallen, welche SoD-Konflikte sich lösen und ob Rollen seiner Abteilung
+    betroffen wären. `rollen` sind Rollennamen wie Z_FI_ZAHLLAUF, KEINE Transaktionscodes
+    wie F110. Die Rollen eines Benutzers liefert benutzer_rollen. Ändert nichts, nur lesend."""
+    stamm = finde_benutzer(benutzer)
+    if stamm is None:
+        ergebnis = {"fehler": f"Benutzer {benutzer} nicht gefunden"}
+        protokolliere("simuliere_entzug", {"benutzer": benutzer, "rollen": rollen}, ergebnis)
+        return ergebnis
+
+    kennung = stamm["benutzer"]
+    vorher_rollen, _ = transaktionen_von(kennung)
+    ungueltig = [r for r in rollen if r not in vorher_rollen]
+    if ungueltig:
+        hinweise = []
+        for name in ungueltig:
+            enthalten_in = sorted({
+                z["rolle"] for z in lade("rollen.csv")
+                if z["tcode"] == name and z["rolle"] in vorher_rollen
+            })
+            if enthalten_in:
+                hinweise.append(f"{name} ist eine Transaktion, keine Rolle. Sie steckt in: {', '.join(enthalten_in)}")
+            else:
+                hinweise.append(f"{name} ist dem Benutzer nicht als Rolle zugeordnet")
+        ergebnis = {
+            "fehler": "Ungültige Rollenangabe, es wurde nichts simuliert",
+            "hinweise": hinweise,
+            "zugeordnete_rollen": vorher_rollen,
+        }
+    else:
+        ergebnis = berechne_entzug(kennung, rollen)
+    protokolliere("simuliere_entzug", {"benutzer": benutzer, "rollen": rollen}, ergebnis)
+    return ergebnis
+
+
+@mcp.tool()
+def loesungsvorschlaege(benutzer: str) -> dict:
+    """Ermittelt die besten Lösungen für die offenen SoD-Konflikte eines Benutzers. Simuliert den
+    Entzug jeder einzelnen zugeordneten Rolle und sortiert nach Wirkung: zuerst Lösungen, die alle
+    Konflikte lösen, ohne Rollen der eigenen Abteilung zu berühren. Nutze dieses Werkzeug, wenn
+    nach Lösungen gefragt wird, und nenne nur die Rollen aus seinem Ergebnis. Ändert nichts."""
+    stamm = finde_benutzer(benutzer)
+    if stamm is None:
+        ergebnis = {"fehler": f"Benutzer {benutzer} nicht gefunden"}
+        protokolliere("loesungsvorschlaege", {"benutzer": benutzer}, ergebnis)
+        return ergebnis
+
+    kennung = stamm["benutzer"]
+    offen = [k["regel_id"] for k in sod_konflikte(kennung) if k["status"] != "abgesichert"]
+    optionen = []
+    if offen:
+        rollen, _ = transaktionen_von(kennung)
+        for rolle in rollen:
+            sim = berechne_entzug(kennung, [rolle])
+            geloest = [r for r in sim["geloeste_konflikte"] if r in offen]
+            if geloest:
+                optionen.append({
+                    "rolle_entziehen": rolle,
+                    "loest": geloest,
+                    "loest_alle_offenen": len(geloest) == len(offen),
+                    "verlorene_transaktionen": sim["verlorene_transaktionen"],
+                    "rolle_gehoert_zur_abteilung": bool(sim["rollen_der_abteilung_betroffen"]),
+                    "bewertung": sim["bewertung"],
+                })
+        optionen.sort(key=lambda o: (o["rolle_gehoert_zur_abteilung"], -len(o["loest"]),
+                                     len(o["verlorene_transaktionen"])))
+
+    ergebnis = {
+        "benutzer": kennung,
+        "offene_konflikte": offen,
+        "empfehlung": optionen[0]["rolle_entziehen"] if optionen and optionen[0]["loest_alle_offenen"]
+                      and not optionen[0]["rolle_gehoert_zur_abteilung"] else None,
+        "optionen": optionen,
+        "alternative": "Ist keine Option passend, kann der Konflikt als Ausnahme mit Kontrolle genehmigt werden",
+    }
+    protokolliere("loesungsvorschlaege", {"benutzer": benutzer}, ergebnis)
+    return ergebnis
+
+
 REIHENFOLGE = {"hoch": 0, "mittel": 1, "prüfen": 2}
 
 

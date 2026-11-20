@@ -18,7 +18,9 @@ SYSTEM = (
     "beurteilen muss, ob die Berechtigung zur Tätigkeit passt. "
     "Abgesicherte Konflikte sind durch eine genehmigte Kontrolle abgedeckt: Nenne sie als Information, "
     "nicht als offenen Befund. "
-    "Erkläre Ergebnisse verständlich und schlage Lösungen vor. Entscheidungen trifft immer ein Mensch. "
+    "Wenn nach Lösungen gefragt wird, nutze das Werkzeug loesungsvorschlaege. "
+    "Nenne nur Rollen, Transaktionen und Regeln, die wörtlich in Werkzeugergebnissen vorkommen. Erfinde keine Namen. "
+    "Erkläre Ergebnisse verständlich. Entscheidungen trifft immer ein Mensch. "
     "Antworte auf Deutsch."
 )
 SERVER = StdioServerParameters(

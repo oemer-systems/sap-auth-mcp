@@ -55,3 +55,11 @@ def test_waechter_aendert_keine_daten():
     vorher = pruefsumme()
     waechter.lauf()
     assert pruefsumme() == vorher
+
+
+def test_fakten_text_trennt_behoben_und_neu():
+    neu = [{"prioritaet": "hoch", "kategorie": "Gesperrt mit Rollen", "benutzer": "NWOLF",
+            "name": "N. Wolf", "detail": "Rollen: Z_SD_VERTRIEB"}]
+    text = waechter.fakten_text(neu, ["SoD-Konflikt | MMUSTER | SOD01"], 13)
+    assert "1 neue Befunde, 1 behobene Befunde, 13 Befunde" in text
+    assert text.index("BEHOBEN") < text.index("SOD01") < text.index("NEU AUFGETRETEN") < text.index("NWOLF")

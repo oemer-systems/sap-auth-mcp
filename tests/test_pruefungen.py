@@ -1,27 +1,8 @@
 """Automatische Tests für alle Prüfungen. Ausführen mit: python -m pytest"""
 import csv
-from datetime import date
-
-import pytest
 
 import import_sap
 import server
-
-
-class FesterTag(date):
-    """Ein Datum, das immer den 19.11.2026 als heute liefert."""
-
-    @classmethod
-    def today(cls):
-        return cls(2026, 11, 19)
-
-
-@pytest.fixture(autouse=True)
-def testumgebung(monkeypatch, tmp_path):
-    """Läuft vor jedem Test: festes Datum, Protokoll in einen Testordner."""
-    monkeypatch.setattr(server, "date", FesterTag)
-    monkeypatch.setattr(import_sap, "date", FesterTag)
-    monkeypatch.setattr(server, "LOG", tmp_path / "test_protokoll.jsonl")
 
 
 # Benutzersuche
@@ -96,6 +77,47 @@ def test_risiko_uebersicht_zahlen():
 def test_risiko_uebersicht_ist_nach_prioritaet_sortiert():
     reihenfolge = [server.REIHENFOLGE[b["prioritaet"]] for b in server.risiko_uebersicht()["befunde"]]
     assert reihenfolge == sorted(reihenfolge)
+
+
+# Simulation
+
+def test_simulation_entzug_zahllauf_loest_alle_konflikte():
+    ergebnis = server.simuliere_entzug("MMUSTER", ["Z_FI_ZAHLLAUF"])
+    assert ergebnis["verlorene_transaktionen"] == ["F110"]
+    assert ergebnis["geloeste_konflikte"] == ["SOD01", "SOD02", "SOD03"]
+    assert ergebnis["verbleibende_konflikte"] == []
+    assert ergebnis["bewertung"].startswith("Empfehlenswert")
+
+
+def test_simulation_warnt_bei_rollen_der_abteilung():
+    ergebnis = server.simuliere_entzug("MMUSTER", ["Z_FI_AP_SACHBEARBEITER"])
+    assert ergebnis["rollen_der_abteilung_betroffen"] == ["Z_FI_AP_SACHBEARBEITER"]
+    assert ergebnis["bewertung"].startswith("Achtung")
+
+
+def test_simulation_erkennt_transaktion_statt_rolle():
+    ergebnis = server.simuliere_entzug("MMUSTER", ["F110"])
+    assert "fehler" in ergebnis
+    assert "Z_FI_ZAHLLAUF" in ergebnis["hinweise"][0]
+    assert "bewertung" not in ergebnis
+
+
+def test_loesungsvorschlaege_mmuster():
+    ergebnis = server.loesungsvorschlaege("MMUSTER")
+    assert ergebnis["empfehlung"] == "Z_FI_ZAHLLAUF"
+    assert ergebnis["optionen"][0]["loest"] == ["SOD01", "SOD02", "SOD03"]
+
+
+def test_loesungsvorschlaege_ignorieren_abgesicherte_konflikte():
+    ergebnis = server.loesungsvorschlaege("LKRAUSE")
+    assert ergebnis["offene_konflikte"] == []
+    assert ergebnis["optionen"] == []
+
+
+def test_simulation_aendert_keine_daten():
+    vorher = server.transaktionen_von("AWEBER")
+    server.simuliere_entzug("AWEBER", ["Z_MM_EINKAUF"])
+    assert server.transaktionen_von("AWEBER") == vorher
 
 
 # Protokoll

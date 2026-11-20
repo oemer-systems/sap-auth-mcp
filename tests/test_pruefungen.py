@@ -88,8 +88,8 @@ def test_kritische_berechtigungen():
 
 def test_risiko_uebersicht_zahlen():
     ergebnis = server.risiko_uebersicht()
-    assert ergebnis["anzahl_befunde"] == 15
-    assert ergebnis["nach_prioritaet"] == {"hoch": 8, "mittel": 2, "prüfen": 5}
+    assert ergebnis["anzahl_befunde"] == 18
+    assert ergebnis["nach_prioritaet"] == {"hoch": 9, "mittel": 2, "prüfen": 7}
     assert len(ergebnis["abgesicherte_konflikte"]) == 1
 
 

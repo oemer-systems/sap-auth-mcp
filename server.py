@@ -1,6 +1,6 @@
 import csv
 import json
-from datetime import date, datetime 
+from datetime import date, datetime
 from pathlib import Path
 
 from mcp.server.mcpserver import MCPServer
@@ -45,6 +45,7 @@ def transaktionen_von(kennung):
     tcodes = sorted({r["tcode"] for r in lade("rollen.csv") if r["rolle"] in rollen})
     return rollen, tcodes
 
+
 def funktionen_von(tcodes):
     """Ordnet Transaktionen den Funktionen des Regelwerks zu.
     Ergebnis: {Funktion: [Transaktionen des Benutzers, die dazu gehören]}."""
@@ -53,6 +54,7 @@ def funktionen_von(tcodes):
         if f["tcode"] in tcodes:
             zuordnung.setdefault(f["funktion_id"], []).append(f["tcode"])
     return zuordnung
+
 
 def personaldaten(kennung):
     """Liefert die Personaldaten eines Benutzers aus personal.csv oder None (kein Personalbezug)."""
@@ -63,6 +65,7 @@ def soll_rollen(abteilung):
     """Liefert die Rollen, die laut Rollenkonzept zu einer Abteilung gehören."""
     return {z["rolle"] for z in lade("abteilungsrollen.csv") if z["abteilung"] == abteilung}
 
+
 def ausnahme_status(kennung, regel_id):
     """Sucht eine genehmigte Ausnahme zu einem Konflikt und bewertet sie:
     offen (keine Ausnahme), abgesichert (gültig) oder ausnahme_abgelaufen."""
@@ -72,6 +75,7 @@ def ausnahme_status(kennung, regel_id):
                 return "abgesichert", a
             return "ausnahme_abgelaufen", a
     return "offen", None
+
 
 def sod_konflikte(kennung):
     """Liefert alle SoD-Regeln, bei denen der Benutzer beide Funktionen besitzt,
@@ -90,8 +94,8 @@ def sod_konflikte(kennung):
                 "status": status,
                 "ausnahme": ausnahme,
             })
-        
     return konflikte
+
 
 @mcp.tool()
 def benutzer_rollen(benutzer: str) -> dict:
@@ -117,7 +121,6 @@ def sod_pruefen(benutzer: str) -> dict:
         ergebnis = {"fehler": f"Benutzer {benutzer} nicht gefunden"}
     else:
         konflikte = sod_konflikte(stamm["benutzer"])
-        
         ergebnis = {
             "benutzer": stamm["benutzer"],
             "name": stamm["name"],
@@ -127,6 +130,7 @@ def sod_pruefen(benutzer: str) -> dict:
         }
     protokolliere("sod_pruefen", {"benutzer": benutzer}, ergebnis)
     return ergebnis
+
 
 @mcp.tool()
 def inaktive_benutzer(tage: int = 90) -> dict:
@@ -152,6 +156,8 @@ def inaktive_benutzer(tage: int = 90) -> dict:
     ergebnis = {"schwelle_tage": tage, "anzahl": len(treffer), "benutzer": treffer}
     protokolliere("inaktive_benutzer", {"tage": tage}, ergebnis)
     return ergebnis
+
+
 @mcp.tool()
 def gesperrte_mit_rollen() -> dict:
     """Findet gesperrte Benutzer, denen noch Rollen zugeordnet sind, z. B. ausgeschiedene
@@ -173,6 +179,7 @@ def gesperrte_mit_rollen() -> dict:
     ergebnis = {"anzahl": len(treffer), "benutzer": treffer}
     protokolliere("gesperrte_mit_rollen", {}, ergebnis)
     return ergebnis
+
 
 @mcp.tool()
 def kritische_berechtigungen() -> dict:
@@ -201,14 +208,88 @@ def kritische_berechtigungen() -> dict:
     protokolliere("kritische_berechtigungen", {}, ergebnis)
     return ergebnis
 
+
+@mcp.tool()
+def austritt_mit_rechten() -> dict:
+    """Findet Benutzer, die laut Personalabteilung ausgetreten sind, deren SAP-Benutzer aber
+    nicht gesperrt ist oder noch Rollen hat (Leaver-Prozess). Mit Bereinigungsvorschlag. Nur lesend."""
+    treffer = []
+    for p in lade("personal.csv"):
+        if p["status"] != "ausgetreten":
+            continue
+        b = finde_benutzer(p["benutzer"])
+        rollen, _ = transaktionen_von(p["benutzer"])
+        if b and (b["status"] == "aktiv" or rollen):
+            aktiv = b["status"] == "aktiv"
+            treffer.append({
+                "benutzer": p["benutzer"],
+                "name": b["name"],
+                "austritt": p["austritt"],
+                "benutzer_gesperrt": not aktiv,
+                "letzte_anmeldung": b["letzte_anmeldung"],
+                "rollen": rollen,
+                "vorschlag": ("Benutzer sperren und " if aktiv else "") + "alle Rollen entziehen",
+            })
+    ergebnis = {"anzahl": len(treffer), "benutzer": treffer}
+    protokolliere("austritt_mit_rechten", {}, ergebnis)
+    return ergebnis
+
+
+WECHSEL_TAGE = 365
+
+
+@mcp.tool()
+def rollen_ausserhalb_rollenkonzept() -> dict:
+    """Vergleicht die Rollen jedes beschäftigten Mitarbeiters mit den Soll-Rollen seiner Abteilung
+    laut Personalabteilung. Erkennt Abteilungswechsel, nach denen alte Rollen nicht entzogen wurden.
+    Mit Bereinigungsvorschlag. Nur lesend."""
+    heute = date.today()
+    treffer = []
+    for p in lade("personal.csv"):
+        if p["status"] != "beschäftigt":
+            continue
+        rollen, _ = transaktionen_von(p["benutzer"])
+        unpassend = sorted(set(rollen) - soll_rollen(p["abteilung"]))
+        if unpassend:
+            seit = (heute - date.fromisoformat(p["abteilung_seit"])).days
+            treffer.append({
+                "benutzer": p["benutzer"],
+                "name": finde_benutzer(p["benutzer"])["name"],
+                "abteilung": p["abteilung"],
+                "abteilung_seit": p["abteilung_seit"],
+                "art": "Wechsel ohne Bereinigung" if seit <= WECHSEL_TAGE else "Rolle außerhalb des Rollenkonzepts",
+                "unpassende_rollen": unpassend,
+                "vorschlag": "Entzug prüfen: " + ", ".join(unpassend),
+            })
+    ergebnis = {"anzahl": len(treffer), "benutzer": treffer}
+    protokolliere("rollen_ausserhalb_rollenkonzept", {}, ergebnis)
+    return ergebnis
+
+
+@mcp.tool()
+def ablaufende_ausnahmen(tage: int = 30) -> dict:
+    """Findet genehmigte Ausnahmen, die in den nächsten `tage` Tagen ablaufen, damit der
+    Verantwortliche rechtzeitig verlängern oder den Konflikt beheben kann. Nur lesend."""
+    heute = date.today()
+    treffer = []
+    for a in lade("ausnahmen.csv"):
+        rest = (date.fromisoformat(a["gueltig_bis"]) - heute).days
+        if 0 <= rest <= tage:
+            treffer.append({**a, "tage_bis_ablauf": rest})
+    ergebnis = {"zeitraum_tage": tage, "anzahl": len(treffer), "ausnahmen": treffer}
+    protokolliere("ablaufende_ausnahmen", {"tage": tage}, ergebnis)
+    return ergebnis
+
+
 REIHENFOLGE = {"hoch": 0, "mittel": 1, "prüfen": 2}
 
 
 @mcp.tool()
 def risiko_uebersicht(inaktiv_tage: int = 90) -> dict:
-    """Führt alle Prüfungen über alle Benutzer zusammen: SoD-Konflikte, gesperrte Benutzer
-    mit Rollen, inaktive Benutzer und kritische Berechtigungen. Liefert die Befunde nach
-    Priorität sortiert. Die Priorität folgt festen Regeln. Nur lesend."""
+    """Führt alle Prüfungen über alle Benutzer zusammen: SoD-Konflikte, gesperrte und ausgetretene
+    Benutzer, inaktive Benutzer, kritische Berechtigungen, Rollen außerhalb des Rollenkonzepts und
+    bald ablaufende Ausnahmen. Liefert die Befunde nach Priorität sortiert. Die Priorität folgt
+    festen Regeln. Nur lesend."""
     befunde = []
 
     abgesichert = []
@@ -243,6 +324,9 @@ def risiko_uebersicht(inaktiv_tage: int = 90) -> dict:
         })
 
     for b in inaktive_benutzer(inaktiv_tage)["benutzer"]:
+        p = personaldaten(b["benutzer"])
+        if p and p["status"] == "ausgetreten":
+            continue  # wird als Austritt gemeldet, das ist schwerwiegender
         befunde.append({
             "prioritaet": "mittel",
             "kategorie": "Inaktiver Benutzer",
@@ -260,6 +344,37 @@ def risiko_uebersicht(inaktiv_tage: int = 90) -> dict:
             "detail": f'{b["abteilung"]}: ' + ", ".join(t["tcode"] for t in b["kritische_transaktionen"]),
         })
 
+    for b in austritt_mit_rechten()["benutzer"]:
+        if b["benutzer_gesperrt"]:
+            continue  # bereits als "Gesperrt mit Rollen" erfasst
+        befunde.append({
+            "prioritaet": "hoch",
+            "kategorie": "Ausgetreten, Benutzer aktiv",
+            "benutzer": b["benutzer"],
+            "name": b["name"],
+            "detail": f'Austritt am {b["austritt"]}, letzte Anmeldung {b["letzte_anmeldung"]}. '
+                      f'Vorschlag: {b["vorschlag"]}',
+        })
+
+    for b in rollen_ausserhalb_rollenkonzept()["benutzer"]:
+        wechsel = b["art"] == "Wechsel ohne Bereinigung"
+        befunde.append({
+            "prioritaet": "mittel" if wechsel else "prüfen",
+            "kategorie": b["art"],
+            "benutzer": b["benutzer"],
+            "name": b["name"],
+            "detail": f'{b["abteilung"]} seit {b["abteilung_seit"]}. {b["vorschlag"]}',
+        })
+
+    for a in ablaufende_ausnahmen()["ausnahmen"]:
+        befunde.append({
+            "prioritaet": "prüfen",
+            "kategorie": "Ausnahme läuft bald ab",
+            "benutzer": a["benutzer"],
+            "name": finde_benutzer(a["benutzer"])["name"],
+            "detail": f'{a["regel_id"]} läuft in {a["tage_bis_ablauf"]} Tagen ab. Verantwortlich: {a["verantwortlich"]}',
+        })
+
     befunde.sort(key=lambda x: REIHENFOLGE[x["prioritaet"]])
     ergebnis = {
         "stand": date.today().isoformat(),
@@ -270,6 +385,7 @@ def risiko_uebersicht(inaktiv_tage: int = 90) -> dict:
     }
     protokolliere("risiko_uebersicht", {"inaktiv_tage": inaktiv_tage}, ergebnis)
     return ergebnis
+
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")

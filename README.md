@@ -2,21 +2,21 @@
 
 # SAP-Berechtigungsassistent
 
-### Berechtigungsrisiken in Sekunden erkennen. Ohne Ticket. Mit Beleg.
+### Finden, erklären, lösen. Der Mensch gibt nur noch frei.
 
-**Ein KI-Assistent für SAP-Berechtigungen, der erklärt, statt zu raten.<br>Befunde liefert feste Regellogik, jeder Zugriff wird protokolliert.**
+**Ein KI-Assistent für SAP-Berechtigungen, der Risiken täglich selbst aufspürt und die Lösung gleich mitliefert.<br>Befunde liefert feste Regellogik, jeder Zugriff wird protokolliert.**
 
 🔒 **Läuft vollständig lokal: ohne Cloud, ohne externe API, ohne dass Daten das Unternehmen verlassen.**
 
-![Version](https://img.shields.io/badge/Version-0.3.0-blue)
+![Version](https://img.shields.io/badge/Version-0.4.0-blue)
 ![Status](https://img.shields.io/badge/Status-Pilotf%C3%A4hig-green)
 ![MCP](https://img.shields.io/badge/Standard-MCP-8A2BE2)
 ![SAP](https://img.shields.io/badge/Fokus-SAP_Security-0FAAFF)
 ![Lokal](https://img.shields.io/badge/Betrieb-100%25_lokal_m%C3%B6glich-success)
 ![Datenschutz](https://img.shields.io/badge/Daten-bleiben_im_Haus-success)
-![Tests](https://img.shields.io/badge/Tests-15_bestanden-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-28_bestanden-brightgreen)
 
-[Lokal](#-vollständig-lokal-keine-daten-verlassen-ihr-unternehmen) · [Problem](#das-problem) · [Lösung](#die-lösung) · [Mehrwert](#mehrwert-für-ihr-unternehmen) · [Sicherheit](#sicher-by-design) · [Demo](#demo) · [Pilot](#bereit-für-einen-pilot) · [Fahrplan](#vom-prototyp-zum-einsatz)
+[Lokal](#-vollständig-lokal-keine-daten-verlassen-ihr-unternehmen) · [Problem](#das-problem) · [Lösung](#die-lösung) · [Wächter](#der-wächter-prüft-täglich-meldet-nur-neues) · [Mehrwert](#mehrwert-für-ihr-unternehmen) · [Sicherheit](#sicher-by-design) · [Demo](#demo) · [Pilot](#bereit-für-einen-pilot) · [Fahrplan](#vom-prototyp-zum-einsatz)
 
 </div>
 
@@ -31,7 +31,8 @@
 
 - **Berechtigungsprüfungen sind Handarbeit.** Für jede Revision werden Listen aus mehreren Berichten gezogen, in Excel kombiniert und einzeln erklärt.
 - **Fachbereiche verstehen SAP-Berechtigungen nicht.** "Warum kann ich keinen Zahllauf starten?" wird zum Ticket an das Berechtigungsteam.
-- **Altlasten bleiben unentdeckt.** Ausgeschiedene Mitarbeiter mit Rollen, ungenutzte Konten, abgelaufene Ausnahmegenehmigungen.
+- **Altlasten bleiben unentdeckt.** Ausgeschiedene Mitarbeiter mit aktivem Konto, Abteilungswechsler mit alten Rollen, abgelaufene Ausnahmegenehmigungen.
+- **Geprüft wird selten, gelöst wird von Hand.** Risiken fallen oft erst bei der Revision auf, und für jeden Befund muss jemand die passende Bereinigung ausarbeiten.
 - **KI-Assistenten kommen, die Kontrolle fehlt.** Was sieht die KI, woher stammen ihre Aussagen, wohin fließen die Daten?
 - **Berechtigungsdaten sind hochsensibel.** Wer was darf, ist für Angreifer wertvoll. Solche Daten an einen externen KI-Dienst zu schicken, ist für viele Unternehmen ausgeschlossen.
 
@@ -42,6 +43,9 @@ Ein Assistent, den jeder in normaler Sprache fragen kann. Er greift über eine k
 | Heute | Mit dem Assistenten |
 | --- | --- |
 | Listen aus mehreren Berichten in Excel zusammenführen | Eine Frage liefert den priorisierten Prüfbericht |
+| Risiken fallen erst bei der Revision auf | Der Wächter prüft täglich und meldet nur, was neu ist |
+| Bereinigung von Hand ausarbeiten und hoffen, dass nichts fehlt | Lösungsvorschlag mit Simulation: Was löst der Entzug, was geht verloren? |
+| Austritte und Abteilungswechsel mit der Personalabteilung abgleichen | Automatischer Abgleich mit den HR-Daten |
 | Ticket schreiben und auf Antwort warten | Frage stellen, Antwort in Sekunden |
 | Technische Antwort, die der Fachbereich nicht versteht | Verständliche Erklärung mit Lösungsvorschlag |
 | Prüfbericht von Hand für die Akte erstellen | Excel-Bericht auf Knopfdruck |
@@ -54,10 +58,14 @@ Ein Assistent, den jeder in normaler Sprache fragen kann. Er greift über eine k
 | 📊 | **Risikoübersicht** über alle Benutzer, nach Priorität sortiert | "Erstelle eine Übersicht aller Berechtigungsrisiken." |
 | ⚖️ | **SoD-Prüfung mit Funktionen**, inklusive S/4HANA-Transaktionen wie BP | "Hat KBAUER SoD-Konflikte?" |
 | ✅ | **Genehmigte Ausnahmen** mit Kontrolle und Ablaufdatum | "Ist der Konflikt von LKRAUSE ein Problem?" |
-| 🚪 | **Gesperrte Benutzer mit Rollen**, etwa nach Austritt | "Gibt es ausgeschiedene Mitarbeiter, die noch Rechte haben?" |
+| 🛡️ | **Wächter** prüft täglich von selbst und meldet nur neue und erledigte Befunde | `python waechter.py` |
+| 💡 | **Lösungsvorschläge** mit fester Logik: Welche Rolle sollte weg, ohne die Abteilung zu behindern? | "Wie löse ich die SoD-Konflikte von MMUSTER am besten?" |
+| 🧪 | **Simulation** eines Rollenentzugs, bevor etwas geändert wird | "Was passiert, wenn MMUSTER Z_FI_ZAHLLAUF verliert?" |
+| 🚪 | **Austritte und Wechsel** im Abgleich mit den HR-Daten | "Gibt es ausgeschiedene Mitarbeiter, die noch Rechte haben?" |
+| 🗂️ | **Rollenkonzept**: Rollen, die nicht zur Abteilung passen | "Wer hat Rollen außerhalb des Rollenkonzepts?" |
 | 💤 | **Inaktive Benutzer** mit einstellbarer Schwelle | "Wer war seit 30 Tagen nicht angemeldet?" |
 | 🔑 | **Kritische Berechtigungen** wie Benutzer-, Rollen- und Tabellenpflege | "Wer hat kritische Berechtigungen, und passt das zur Abteilung?" |
-| 📥 | **Import von SAP-Standardexporten** (USR02, USER_ADDR, AGR_USERS, AGR_TCODES, AGR_TEXTS) | `python import_sap.py` |
+| 📥 | **Import von SAP-Standardexporten** inklusive HR-Infotypen | `python import_sap.py` |
 | 📄 | **Prüfbericht als Excel** für die Prüfungsakte | `python bericht.py` |
 | 🔒 | **Vollständig lokaler Betrieb** ohne Cloud, ohne API, ohne Datenabfluss | Auswahl "Lokal" oder `python chat.py lokal` |
 
@@ -65,7 +73,7 @@ Ein Assistent, den jeder in normaler Sprache fragen kann. Er greift über eine k
 
 | Für | Nutzen |
 | --- | --- |
-| **Berechtigungsteam** | Prüfbericht auf Knopfdruck, weniger Routineanfragen, mehr Zeit für Konzept und Risikoarbeit |
+| **Berechtigungsteam** | Tägliche Meldung statt jährlicher Suche, fertige Lösungsvorschläge, weniger Routineanfragen |
 | **Revision und Compliance** | Befunde nach festen Regeln, genehmigte Ausnahmen mit Ablaufdatum, Bericht für die Akte, jeder Zugriff nachvollziehbar |
 | **Fachbereiche** | Sofortige, verständliche Auskunft statt Wartezeit |
 | **IT-Security und Datenschutz** | Kein Datenabfluss nach außen, kein externer KI-Dienst, nur lesende Werkzeuge |
@@ -75,11 +83,12 @@ Ein Assistent, den jeder in normaler Sprache fragen kann. Er greift über eine k
 - **Kein freier Datenzugriff:** Die KI nutzt nur freigegebene Werkzeuge
 - **Nur lesend:** Nichts wird geändert, keine Berechtigung vergeben
 - **Regeln statt Vermutungen:** Befunde und Prioritäten berechnet fester Code. Gleiche Daten, gleiches Ergebnis
-- **Mensch entscheidet:** Die KI erklärt und schlägt vor, Freigaben bleiben beim Menschen
+- **Mensch entscheidet:** Wächter und KI finden und schlagen vor, Freigaben bleiben beim Menschen
+- **Simulation statt Ausführung:** Ein Rollenentzug wird durchgerechnet, nie ausgeführt
 - **Lückenlos protokolliert:** Jeder Werkzeugaufruf mit Zeit und Eingabe, unabhängig davon, was die KI über sich selbst sagt
 - **Datensparsam:** Die KI erhält nur die Ergebnisse der Prüfungen, nie den gesamten Berechtigungsbestand
 - **Vollständig lokal:** Mit dem lokalen Sprachmodell verlässt kein Zeichen den Rechner. Kein API-Key, kein Internet im Betrieb
-- **Automatisch getestet:** 15 Tests sichern alle Prüfungen und den Import ab
+- **Automatisch getestet:** 28 Tests sichern Prüfungen, Simulation, Wächter und Import ab
 
 **Feste Prioritätsregeln**
 
@@ -89,8 +98,27 @@ Ein Assistent, den jeder in normaler Sprache fragen kann. Er greift über eine k
 | SoD-Konflikt mit abgelaufener Ausnahme | Hoch: Die genehmigte Kontrolle ist nicht mehr nachgewiesen |
 | SoD-Konflikt mit gültiger Ausnahme | Kein Befund, wird als abgesichert aufgeführt |
 | Gesperrter Benutzer mit Rollen | Hoch: Eine Entsperrung gibt sofort alle Rechte zurück |
+| Ausgetreten, Benutzer aktiv | Hoch: Zugang ohne Arbeitsverhältnis |
+| Abteilungswechsel ohne Bereinigung | Mittel: alte Rechte bleiben über den Wechsel hinaus |
 | Inaktiver Benutzer mit Rollen | Mittel: ungenutztes Konto als Angriffsfläche |
 | Kritische Berechtigung | Prüfen: kann zur Tätigkeit passen, ein Mensch beurteilt |
+| Rolle außerhalb des Rollenkonzepts | Prüfen: kann begründet sein, ein Mensch beurteilt |
+| Ausnahme läuft in 30 Tagen ab | Prüfen: Verlängerung oder Bereinigung rechtzeitig planen |
+
+## Der Wächter: prüft täglich, meldet nur Neues
+
+Der Wächter läuft ohne Chat und ohne dass jemand fragen muss, zum Beispiel jeden Morgen über die Windows-Aufgabenplanung. Er führt alle Prüfungen aus, vergleicht mit dem letzten Lauf und meldet nur Änderungen. Neue SoD-Konflikte bekommen den passenden Lösungsvorschlag gleich mit, und das lokale Sprachmodell fasst das Ergebnis in wenigen Sätzen zusammen.
+
+![Wächter](assets/waechter.png)
+
+*Ein einziger Rollenentzug erledigt fünf Befunde. Der Wächter erkennt das beim nächsten Lauf von selbst.*
+
+| Schritt | Wer |
+| --- | --- |
+| Risiken finden | Wächter, automatisch |
+| Lösung vorschlagen und durchrechnen | Wächter, mit fester Logik |
+| Ergebnis verständlich zusammenfassen | Lokales Sprachmodell |
+| **Freigeben und umsetzen** | **Mensch** |
 
 ## 🔒 Vollständig lokal: keine Daten verlassen Ihr Unternehmen
 
@@ -155,17 +183,20 @@ flowchart LR
     S --> D[(Berechtigungsdaten)]
     E[SAP-Exporte] -->|import_sap.py| D
     S --> B[Prüfbericht<br>Excel]
+    W[Wächter<br>täglich] --> S
+    W --> R[Meldung<br>nur Neues]
 ```
 
 Die KI formuliert, der Berechtigungs-Server prüft. Die Daten kommen aus Standardexporten des SAP-Systems.
 
 ## Bereit für einen Pilot
 
-Ein Pilot über 4 bis 6 Wochen braucht vom Unternehmen nur drei Dinge:
+Ein Pilot über 4 bis 6 Wochen braucht vom Unternehmen nur vier Dinge:
 
-1. **Exporte** der Tabellen USR02, USER_ADDR, AGR_USERS, AGR_TCODES und AGR_TEXTS, z. B. über SE16N
+1. **Exporte** der Tabellen USR02, USER_ADDR, AGR_USERS, AGR_TCODES und AGR_TEXTS, dazu die HR-Infotypen PA0000, PA0001, PA0105 und T527X, z. B. über SE16N
 2. **Das SoD-Regelwerk** mit Funktionen und Regeln
 3. **Die genehmigten Ausnahmen** mit Kontrolle und Gültigkeit
+4. **Das Rollenkonzept**: welche Rollen zu welcher Abteilung gehören
 
 Kein Zugriff auf das SAP-System nötig. **Der Pilot läuft vollständig lokal** auf einem Rechner oder Server des Unternehmens, die Daten verlassen das Haus nicht. Im Pilot werden die Befunde mit dem vorhandenen Prüfwerkzeug abgeglichen, bevor der Assistent im Alltag genutzt wird.
 
@@ -176,8 +207,9 @@ Kein Zugriff auf das SAP-System nötig. **Der Pilot läuft vollständig lokal** 
 | **1. Proof of Concept** | Auskunft, SoD-Prüfung, Protokoll, eigene Oberfläche | ✅ v0.1.0 |
 | **1b. Prüfungen** | Risikoübersicht, inaktive und gesperrte Benutzer, kritische Berechtigungen | ✅ v0.2.0 |
 | **2. Pilotfähigkeit** | Funktionsbasiertes Regelwerk, genehmigte Ausnahmen, SAP-Import, Excel-Bericht, lokaler Betrieb, automatische Tests | ✅ v0.3.0 |
-| **3. Integration** | Live-Anbindung an SAP, Betrieb auf SAP BTP mit Anmeldung, Protokoll mit Benutzerbezug | Geplant |
-| **4. Ausbau** | Einbindung in Joule-Agenten, Prüfung auf Ebene von Berechtigungsobjekten, Sammelrollen | Geplant |
+| **3. Vorausdenken** | Wächter, Lösungsvorschläge, Simulation, HR-Abgleich, Rollenkonzept | ✅ v0.4.0 |
+| **4. Integration** | Betrieb auf SAP BTP mit Anmeldung, Protokoll mit Benutzerbezug, Live-Anbindung an SAP | Geplant v0.5.0 |
+| **5. Antragsassistent** | Berechtigungsanträge in normaler Sprache, vorgeprüft vor der Freigabe, Einbindung in Joule | Geplant v0.6.0 |
 
 ---
 
@@ -205,6 +237,8 @@ pip install -r requirements.txt
 | Chat im Terminal, lokal | `python chat.py lokal` |
 | SAP-Exporte importieren (aus `data/sap_export`) | `python import_sap.py` |
 | Prüfbericht erstellen (in `berichte/`) | `python bericht.py` |
+| Wächter einmal ausführen | `python waechter.py` (mit Zusammenfassung: `--ki`) |
+| Wächter täglich um 7 Uhr | `schtasks /Create /SC DAILY /ST 07:00 /TN "SAP-Waechter" /TR "C:\Pfad\zu\sap-auth-mcp\waechter.bat"` |
 | Tests ausführen | `python -m pytest` |
 | MCP Inspector (Node.js) | `npx @modelcontextprotocol/inspector python server.py` |
 
@@ -231,6 +265,11 @@ Python · MCP Python SDK 2.x · Claude API · Ollama · Streamlit · openpyxl ·
 | `gesperrte_mit_rollen` | Gesperrte Benutzer mit verbliebenen Rollen |
 | `inaktive_benutzer` | Aktive Benutzer ohne Anmeldung seit X Tagen (Standard 90) |
 | `kritische_berechtigungen` | Benutzer mit kritischen Transaktionen, mit Abteilung zur Beurteilung |
+| `loesungsvorschlaege` | Simuliert jede Rolle eines Benutzers und empfiehlt den Entzug, der alle offenen Konflikte löst, ohne die Abteilung zu behindern |
+| `simuliere_entzug` | Rechnet durch, welche Konflikte ein Rollenentzug löst und welche Transaktionen verloren gehen |
+| `austritt_mit_rechten` | Ausgetretene Mitarbeiter laut HR mit aktivem Benutzer oder Rollen |
+| `rollen_ausserhalb_rollenkonzept` | Rollen, die nicht zur Abteilung passen, inklusive Wechsel ohne Bereinigung |
+| `ablaufende_ausnahmen` | Genehmigte Ausnahmen, die bald ablaufen |
 | `benutzer_rollen` | Stammdaten, Rollen und Transaktionen, Suche über Kennung oder Namen |
 
 | Datei | Aufgabe |
@@ -240,6 +279,7 @@ Python · MCP Python SDK 2.x · Claude API · Ollama · Streamlit · openpyxl ·
 | `app.py` / `chat.py` | Chat im Browser / im Terminal |
 | `import_sap.py` | Übersetzt SAP-Standardexporte in das Datenformat des Servers |
 | `bericht.py` | Erstellt den Excel-Prüfbericht, ohne KI |
+| `waechter.py` / `waechter.bat` | Prüft alle Benutzer, meldet nur Änderungen, Start per Aufgabenplanung |
 | `tests/` | Automatische Tests mit festem Prüfdatum |
 | `data/` | Musterdaten und Regelwerk: Funktionen, SoD-Regeln, Transaktionen, Ausnahmen |
 | `data/sap_export/` | Musterexporte im Format der SAP-Tabellen |
@@ -252,6 +292,9 @@ Python · MCP Python SDK 2.x · Claude API · Ollama · Streamlit · openpyxl ·
 - Das Sprachmodell ist austauschbar, weil die Prüflogik im Server liegt. Cloud und lokal liefern dieselben Befunde
 - Der Selbstauskunft des Modells ist nicht zu trauen. Verlässlich ist das Protokoll der tatsächlichen Aufrufe
 - Ein stdio-Server darf nichts auf die Standardausgabe schreiben, deshalb protokolliert er in eine Datei
+- Je mehr Denkarbeit im Code steckt, desto zuverlässiger arbeitet auch ein kleines lokales Modell. Musste es Lösungen selbst ableiten, erfand es Rollennamen. Mit fester Lösungslogik erklärt es nur noch
+- Werkzeuge lehnen ungültige Eingaben aktiv ab, etwa eine Transaktion statt einer Rolle, und nennen die richtige Alternative
+- Fakten für die KI-Zusammenfassung formuliert der Code eindeutig vor. Sonst deutet ein kleines Modell behobene Befunde als bestehend
 
 </details>
 
@@ -261,16 +304,16 @@ Python · MCP Python SDK 2.x · Claude API · Ollama · Streamlit · openpyxl ·
 | Benutzer | Befund | Priorität |
 | --- | --- | --- |
 | MMUSTER | Kreditor anlegen und ändern sowie Zahllauf (SOD01, SOD02, SOD03) | hoch / mittel |
-| KBAUER | Geschäftspartnerpflege in S/4HANA (BP) und Zahllauf (SOD01, SOD02) | hoch |
-| AWEBER | Bestellung selbst freigeben (SOD04), Wareneingang mit abgelaufener Ausnahme (SOD05) | hoch |
+| KBAUER | Geschäftspartnerpflege in S/4HANA (BP) und Zahllauf (SOD01, SOD02), Rolle außerhalb des Rollenkonzepts | hoch / prüfen |
+| AWEBER | Bestellung selbst freigeben (SOD04), Wareneingang mit abgelaufener Ausnahme (SOD05), seit Oktober im Vertrieb mit alten Einkaufsrollen | hoch / mittel |
 | JBECKER | Rollen pflegen und zuweisen (SOD07), Entwicklerrechte | hoch / prüfen |
 | NWOLF | Gesperrt, Rollen noch zugeordnet | hoch |
 | LKRAUSE | Auftrag und Kreditlimit (SOD06), durch genehmigte Kontrolle abgesichert | kein Befund |
-| DSCHULZ | Seit Februar 2025 inaktiv, Rolle noch zugeordnet | mittel |
+| DSCHULZ | Laut HR seit März 2025 ausgetreten, Benutzer noch aktiv | hoch |
 | FIREFIGHTER_01 | Notfallbenutzer mit dauerhaften Entwicklerrechten | prüfen |
 | PKLEIN | Abgelaufene Rollenzuordnung, wird beim Import übersprungen | kein Befund |
 
-Die Risikoübersicht liefert 15 Befunde: 8 hoch, 2 mittel, 5 prüfen, dazu 1 abgesicherter Konflikt (Stand November 2026).
+Die Risikoübersicht liefert 18 Befunde: 9 hoch, 2 mittel, 7 prüfen, dazu 1 abgesicherter Konflikt (Stand November 2026). Lösungsvorschläge: MMUSTER Z_FI_ZAHLLAUF, KBAUER Z_S4_GP_PFLEGE, AWEBER Z_MM_EINKAUF entziehen. Für JBECKER gibt es bewusst keinen Vorschlag, weil beide Rollen zur IT-Basis gehören.
 
 </details>
 
@@ -280,7 +323,9 @@ Die Risikoübersicht liefert 15 Befunde: 8 hoch, 2 mittel, 5 prüfen, dazu 1 abg
 - Frei erfundene Musterdaten, Import aus Exportdateien statt Live-Anbindung
 - SoD-Prüfung auf Ebene von Transaktionen und Funktionen, noch nicht auf Ebene von Berechtigungsobjekten und Feldwerten
 - Sammelrollen (AGR_AGRS) werden noch nicht aufgelöst
-- Protokoll ohne Benutzerbezug, das folgt mit Anmeldung in Phase 3
+- Protokoll ohne Benutzerbezug, das folgt mit Anmeldung in Phase 4
+- Der Wächter meldet in Konsole, Log und Bericht. Benachrichtigung per Mail oder Teams ist noch nicht eingebaut
+- Vorschläge werden nie ausgeführt. Das ist Absicht, nicht Grenze
 - Nur im optionalen Cloud-Modus gehen Fragen und Werkzeugergebnisse an die Claude API. Im lokalen Modus verlassen keine Daten den Rechner
 - Das lokale Modell formuliert bei komplexen Fragen einfacher als große Cloud-Modelle
 

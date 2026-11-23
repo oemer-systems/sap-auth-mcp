@@ -67,6 +67,22 @@
         "type": "cds.String"
       }
     },
+    "ZahlungService.bankverbindungAktualisieren": {
+      "kind": "action",
+      "doc": "Ersetzt die hinterlegte Bankverbindung eines Lieferanten.",
+      "@requires": "Kreditorenbuchhaltung",
+      "params": {
+        "lieferantID": {
+          "type": "cds.String"
+        },
+        "neueIban": {
+          "type": "cds.String"
+        }
+      },
+      "returns": {
+        "type": "cds.String"
+      }
+    },
     "ZahlungService.Zahlungen": {
       "kind": "entity",
       "@restrict": [

@@ -27,6 +27,11 @@ service ZahlungService {
   @sod.funktion: 'F_ZAHLUNG'
   action zahlungAusfuehren(zahlungID : String) returns String;
 
+  // Hinweis H1: keine SoD-Funktion zugeordnet. Hier soll die KI einen Vorschlag machen
+  /** Ersetzt die hinterlegte Bankverbindung eines Lieferanten. */
+  @requires: 'Kreditorenbuchhaltung'
+  action bankverbindungAktualisieren(lieferantID : String, neueIban : String) returns String;
+
   // Sauber: eigene Rolle nur zum Lesen
   @restrict: [{ grant: 'READ', to: 'Pruefer' }]
   entity Zahlungen {

@@ -228,16 +228,25 @@ def main(argumente=None):
     parser = argparse.ArgumentParser(description="SoD-Linter für CAP-Projekte")
     parser.add_argument("csn", help="Kompiliertes Modell: cds compile srv --to json")
     parser.add_argument("xs_security", nargs="?", help="xs-security.json (optional)")
+    parser.add_argument("--vorschlagen", action="store_true",
+                        help="Lokale KI schlägt SoD-Funktionen für Operationen ohne @sod vor")
     parser.add_argument("--regeln", default=STANDARD_REGELN, help="Ordner mit dem SAP-Regelwerk (Standard: data) oder eigene YAML-Datei")
     a = parser.parse_args(argumente)
 
-    befunde = pruefe(lade_json(a.csn), lade_json(a.xs_security) if a.xs_security else {}, lade_regeln(a.regeln))
+    csn, regeln = lade_json(a.csn), lade_regeln(a.regeln)
+    befunde = pruefe(csn, lade_json(a.xs_security) if a.xs_security else {}, regeln)
     for b in befunde:
         zeichen = "FEHLER " if b["schwere"] == "fehler" else "WARNUNG"
         print(f"{zeichen} [{b['regel']}] {b['ort']}\n        {b['meldung']}")
     fehler = sum(b["schwere"] == "fehler" for b in befunde)
     print(f"\n{fehler} Fehler, {len(befunde) - fehler} Warnungen")
-    return 1 if fehler else 0   # 1 = GitHub Action schlägt fehl
+    if a.vorschlagen:
+        try:
+            from linter import ki_zuordnung      # beim Import aus den Tests
+        except ImportError:
+            import ki_zuordnung                  # beim Start als Skript
+        ki_zuordnung.ausgeben(ki_zuordnung.vorschlagen(operationen(csn), csn, regeln))
+    return 1 if fehler else 0   # Vorschläge ändern das Ergebnis nie   # 1 = GitHub Action schlägt fehl
 
 
 if __name__ == "__main__":

@@ -1,0 +1,30 @@
+# SoD-Regelwerk für den CAP-Linter
+# Gleiche Funktionen und Regel-IDs wie in sap-auth-mcp v0.4.0, ergänzt um die Zahlungsfreigabe.
+
+funktionen:
+  F_KRED_ANLEGEN:
+    beschreibung: Kreditor anlegen
+    kritisch: false
+  F_KRED_AENDERN:
+    beschreibung: Kreditor einschließlich Bankdaten ändern
+    kritisch: true
+  F_ZAHLUNG:
+    beschreibung: Zahlung ausführen
+    kritisch: true
+  F_ZAHLUNG_FREIGEBEN:
+    beschreibung: Zahlung freigeben
+    kritisch: true
+
+konflikte:
+  - id: SOD01
+    funktionen: [F_KRED_ANLEGEN, F_ZAHLUNG]
+    risiko: hoch
+    beschreibung: "Kreditor anlegen und Zahlung ausführen: Zahlungen an einen fingierten Lieferanten möglich"
+  - id: SOD02
+    funktionen: [F_KRED_AENDERN, F_ZAHLUNG]
+    risiko: hoch
+    beschreibung: "Bankdaten ändern und Zahlung ausführen: Umleitung von Zahlungen auf eigene Konten möglich"
+  - id: SOD08
+    funktionen: [F_ZAHLUNG, F_ZAHLUNG_FREIGEBEN]
+    risiko: hoch
+    beschreibung: "Zahlung ausführen und selbst freigeben: Vier-Augen-Prinzip wird umgangen"

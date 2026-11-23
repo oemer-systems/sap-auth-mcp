@@ -7,6 +7,8 @@
     },
     "ZahlungService.Lieferanten": {
       "kind": "entity",
+      "@sod.CREATE": "F_KRED_ANLEGEN",
+      "@sod.UPDATE": "F_KRED_AENDERN",
       "elements": {
         "ID": {
           "key": true,
@@ -26,6 +28,7 @@
     "ZahlungService.zahlungFreigeben": {
       "kind": "action",
       "@requires": "authenticated-user",
+      "@sod.funktion": "F_ZAHLUNG_FREIGEBEN",
       "params": {
         "zahlungID": {
           "type": "cds.String"
@@ -38,6 +41,7 @@
     "ZahlungService.lieferantAnlegen": {
       "kind": "action",
       "@requires": "Kreditorenbuchhaltung",
+      "@sod.funktion": "F_KRED_ANLEGEN",
       "params": {
         "name": {
           "type": "cds.String"
@@ -53,6 +57,7 @@
     "ZahlungService.zahlungAusfuehren": {
       "kind": "action",
       "@requires": "Kreditorenbuchhaltung",
+      "@sod.funktion": "F_ZAHLUNG",
       "params": {
         "zahlungID": {
           "type": "cds.String"

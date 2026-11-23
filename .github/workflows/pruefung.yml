@@ -1,0 +1,57 @@
+# Läuft bei jedem Push und jedem Pull Request automatisch auf einem Rechner von GitHub.
+name: Prüfung
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code holen
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Pakete installieren
+        # pywin32 gibt es nur für Windows, deshalb wird es hier herausgefiltert
+        run: |
+          grep -v -i "^pywin32" requirements.txt > requirements-ci.txt
+          pip install -r requirements-ci.txt
+
+      - name: Alle Tests ausführen
+        run: python -m pytest
+
+  sod-linter:
+    name: SoD-Linter
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code holen
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Paket für das Regelwerk installieren
+        run: pip install pyyaml
+
+      - name: Beispiel-Service prüfen und Ergebnis anzeigen
+        # Der Beispiel-Service enthält absichtlich Fehler. Deshalb soll dieser Schritt
+        # nicht fehlschlagen, sondern das Ergebnis in der Zusammenfassung zeigen.
+        run: |
+          python linter/sod_linter.py beispiel-cap/csn.json beispiel-cap/xs-security.json > ergebnis.txt || true
+          cat ergebnis.txt
+          {
+            echo "## SoD-Linter: Beispiel-Service"
+            echo "Die Fehler sind absichtlich eingebaut, um den Linter zu zeigen."
+            echo '```'
+            cat ergebnis.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

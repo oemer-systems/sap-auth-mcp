@@ -26,3 +26,4 @@ BP,Geschäftspartner pflegen (S/4HANA),nein
 F-53,Zahlungsausgang manuell buchen,ja
 UKM_BP,Kreditmanagement Geschäftspartner (S/4HANA),nein
 SU10,Benutzer-Massenpflege,ja
+BNK_APP,Zahlungen freigeben (Bankkommunikation),ja

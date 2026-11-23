@@ -1,0 +1,31 @@
+﻿{
+  "scopes": [
+    {
+      "name": "$XSAPPNAME.Kreditorenbuchhaltung",
+      "description": "Kreditorenbuchhaltung"
+    },
+    {
+      "name": "$XSAPPNAME.Pruefer",
+      "description": "Pruefer"
+    }
+  ],
+  "attributes": [],
+  "role-templates": [
+    {
+      "name": "Kreditorenbuchhaltung",
+      "description": "generated",
+      "scope-references": [
+        "$XSAPPNAME.Kreditorenbuchhaltung"
+      ],
+      "attribute-references": []
+    },
+    {
+      "name": "Pruefer",
+      "description": "generated",
+      "scope-references": [
+        "$XSAPPNAME.Pruefer"
+      ],
+      "attribute-references": []
+    }
+  ]
+}

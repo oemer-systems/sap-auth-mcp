@@ -1,0 +1,114 @@
+﻿{
+  "definitions": {
+    "ZahlungService": {
+      "@source": "srv/zahlung-service.cds",
+      "kind": "service",
+      "@mcp": true
+    },
+    "ZahlungService.Lieferanten": {
+      "kind": "entity",
+      "@sod.CREATE": "F_KRED_ANLEGEN",
+      "@sod.UPDATE": "F_KRED_AENDERN",
+      "elements": {
+        "ID": {
+          "key": true,
+          "type": "cds.String",
+          "length": 10
+        },
+        "name": {
+          "type": "cds.String",
+          "length": 80
+        },
+        "iban": {
+          "type": "cds.String",
+          "length": 34
+        }
+      }
+    },
+    "ZahlungService.zahlungFreigeben": {
+      "kind": "action",
+      "@requires": "authenticated-user",
+      "@sod.funktion": "F_ZAHLUNG_FREIGEBEN",
+      "params": {
+        "zahlungID": {
+          "type": "cds.String"
+        }
+      },
+      "returns": {
+        "type": "cds.String"
+      }
+    },
+    "ZahlungService.lieferantAnlegen": {
+      "kind": "action",
+      "@requires": "Kreditorenbuchhaltung",
+      "@sod.funktion": "F_KRED_ANLEGEN",
+      "params": {
+        "name": {
+          "type": "cds.String"
+        },
+        "iban": {
+          "type": "cds.String"
+        }
+      },
+      "returns": {
+        "type": "cds.String"
+      }
+    },
+    "ZahlungService.zahlungAusfuehren": {
+      "kind": "action",
+      "@requires": "Kreditorenbuchhaltung",
+      "@sod.funktion": "F_ZAHLUNG",
+      "params": {
+        "zahlungID": {
+          "type": "cds.String"
+        }
+      },
+      "returns": {
+        "type": "cds.String"
+      }
+    },
+    "ZahlungService.bankverbindungAktualisieren": {
+      "kind": "action",
+      "doc": "Ersetzt die hinterlegte Bankverbindung eines Lieferanten.",
+      "@requires": "Kreditorenbuchhaltung",
+      "params": {
+        "lieferantID": {
+          "type": "cds.String"
+        },
+        "neueIban": {
+          "type": "cds.String"
+        }
+      },
+      "returns": {
+        "type": "cds.String"
+      }
+    },
+    "ZahlungService.Zahlungen": {
+      "kind": "entity",
+      "@restrict": [
+        {
+          "grant": "READ",
+          "to": "Pruefer"
+        }
+      ],
+      "elements": {
+        "ID": {
+          "key": true,
+          "type": "cds.String",
+          "length": 10
+        },
+        "betrag": {
+          "type": "cds.Decimal",
+          "precision": 15,
+          "scale": 2
+        }
+      }
+    }
+  },
+  "meta": {
+    "creator": "CDS Compiler v7.2.1",
+    "compilerCsnFlavor": "inferred",
+    "flavor": "inferred"
+  },
+  "$version": "2.0"
+}

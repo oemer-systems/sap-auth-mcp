@@ -6,3 +6,4 @@ SOD04,F_BEST_ANLEGEN,F_BEST_FREIGEBEN,hoch,Bestellung anlegen und selbst freigeb
 SOD05,F_BEST_ANLEGEN,F_WARENEINGANG,mittel,Bestellung anlegen und Wareneingang buchen: Bestätigung nicht gelieferter Ware möglich
 SOD06,F_AUFTRAG,F_KREDITLIMIT,mittel,Auftrag anlegen und Kreditlimit ändern: Kreditprüfung kann umgangen werden
 SOD07,F_BENUTZERPFLEGE,F_ROLLENPFLEGE,hoch,Rollen pflegen und Benutzern zuweisen: Selbstvergabe beliebiger Berechtigungen möglich
+SOD08,F_ZAHLUNG,F_ZAHLUNG_FREIGEBEN,hoch,Zahlung ausführen und selbst freigeben: Vier-Augen-Prinzip wird umgangen

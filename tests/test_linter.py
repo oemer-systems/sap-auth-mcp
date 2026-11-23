@@ -162,3 +162,27 @@ def test_linter_aendert_keine_dateien():
     vorher = csn.read_bytes()
     linter.main([str(csn)])
     assert csn.read_bytes() == vorher
+
+
+# ---------------------------------------------------------------- Ein Regelwerk für Menschen und Agenten
+
+def test_linter_nutzt_das_regelwerk_des_servers():
+    import server
+    regeln_server = {r["regel_id"] for r in server.lade("sod_regeln.csv")}
+    assert {k["id"] for k in REGELN["konflikte"]} == regeln_server
+    assert "SOD08" in regeln_server
+
+
+def test_kritisch_wird_aus_den_transaktionen_abgeleitet():
+    assert REGELN["funktionen"]["F_ZAHLUNG"]["kritisch"]          # F110 ist kritisch
+    assert not REGELN["funktionen"]["F_KRED_ANLEGEN"]["kritisch"]  # XK01, FK01, BP sind es nicht
+
+
+def test_eigenes_regelwerk_als_yaml(tmp_path):
+    datei = tmp_path / "regeln.yaml"
+    datei.write_text("funktionen:\n  F_A: {beschreibung: A, kritisch: false}\n  F_B: {beschreibung: B, kritisch: false}\n"
+                     "konflikte:\n  - {id: X1, funktionen: [F_A, F_B], risiko: hoch, beschreibung: Test}\n",
+                     encoding="utf-8")
+    regeln = linter.lade_regeln(datei)
+    m = modell(("a", aktion("F_A", "R")), ("b", aktion("F_B", "R")))
+    assert linter.pruefe_sod_in_rollen(linter.operationen(m), regeln)[0]["meldung"].startswith("X1")

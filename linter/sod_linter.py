@@ -3,17 +3,22 @@
 Prüft ein kompiliertes CDS-Modell (CSN) und die xs-security.json gegen ein SoD-Regelwerk,
 bevor ein Service für KI-Agenten in Betrieb geht. Der Linter führt nichts aus, er liest nur.
 
+Das Regelwerk ist dasselbe, das der Berechtigungsassistent für SAP-Benutzer nutzt (Ordner data):
+funktionen.csv, sod_regeln.csv und transaktionen.csv. Ein Regelwerk, zwei Prüfungen.
+Alternativ kann mit --regeln eine eigene YAML-Datei angegeben werden.
+
 Aufruf:
     python linter/sod_linter.py beispiel-cap/csn.json beispiel-cap/xs-security.json
 """
 import argparse
+import csv
 import json
 import sys
 from pathlib import Path
 
 import yaml
 
-STANDARD_REGELN = Path(__file__).parent / "regeln.yaml"
+STANDARD_REGELN = Path(__file__).parent.parent / "data"   # dasselbe Regelwerk wie server.py
 JEDER = {"authenticated-user", "any"}          # Pseudo-Rollen: gelten für alle Angemeldeten bzw. alle
 SCHREIBEND = ["CREATE", "UPDATE", "DELETE"]
 
@@ -26,7 +31,28 @@ def lade_json(pfad):
 
 
 def lade_regeln(pfad=STANDARD_REGELN):
-    return yaml.safe_load(Path(pfad).read_text(encoding="utf-8"))
+    """Ein Ordner wird als SAP-Regelwerk (CSV) gelesen, eine Datei als YAML."""
+    pfad = Path(pfad)
+    if pfad.is_dir():
+        return regeln_aus_csv(pfad)
+    return yaml.safe_load(pfad.read_text(encoding="utf-8"))
+
+
+def regeln_aus_csv(ordner):
+    """Übersetzt das Regelwerk des Berechtigungsassistenten in das Format des Linters."""
+    def lies(name):
+        with open(ordner / name, encoding="utf-8-sig", newline="") as datei:
+            return list(csv.DictReader(datei))
+
+    kritische_tcodes = {t["tcode"] for t in lies("transaktionen.csv") if t["kritisch"] == "ja"}
+    funktionen = {}
+    for zeile in lies("funktionen.csv"):
+        f = funktionen.setdefault(zeile["funktion_id"], {"beschreibung": zeile["beschreibung"], "kritisch": False})
+        if zeile["tcode"] in kritische_tcodes:
+            f["kritisch"] = True   # kritisch, sobald eine ihrer Transaktionen kritisch ist
+    konflikte = [{"id": r["regel_id"], "funktionen": [r["funktion_a"], r["funktion_b"]],
+                  "risiko": r["risiko"], "beschreibung": r["beschreibung"]} for r in lies("sod_regeln.csv")]
+    return {"funktionen": funktionen, "konflikte": konflikte}
 
 
 def als_liste(wert):
@@ -202,7 +228,7 @@ def main(argumente=None):
     parser = argparse.ArgumentParser(description="SoD-Linter für CAP-Projekte")
     parser.add_argument("csn", help="Kompiliertes Modell: cds compile srv --to json")
     parser.add_argument("xs_security", nargs="?", help="xs-security.json (optional)")
-    parser.add_argument("--regeln", default=STANDARD_REGELN, help="SoD-Regelwerk als YAML")
+    parser.add_argument("--regeln", default=STANDARD_REGELN, help="Ordner mit dem SAP-Regelwerk (Standard: data) oder eigene YAML-Datei")
     a = parser.parse_args(argumente)
 
     befunde = pruefe(lade_json(a.csn), lade_json(a.xs_security) if a.xs_security else {}, lade_regeln(a.regeln))

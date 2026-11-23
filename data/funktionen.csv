@@ -18,3 +18,4 @@ F_KREDITLIMIT,Kreditlimit ändern,UKM_BP
 F_BENUTZERPFLEGE,Benutzer pflegen,SU01
 F_BENUTZERPFLEGE,Benutzer pflegen,SU10
 F_ROLLENPFLEGE,Rollen pflegen,PFCG
+F_ZAHLUNG_FREIGEBEN,Zahlung freigeben,BNK_APP

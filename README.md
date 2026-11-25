@@ -19,7 +19,7 @@
 ![Datenschutz](https://img.shields.io/badge/Daten-bleiben_im_Haus-success)
 ![Tests](https://img.shields.io/badge/Tests-53_bestanden-brightgreen)
 
-[Lokal](#-vollständig-lokal-keine-daten-verlassen-ihr-unternehmen) · [Problem](#das-problem) · [Lösung](#die-lösung) · [Wächter](#der-wächter-prüft-täglich-meldet-nur-neues) · [SoD-Linter](#sod-linter-ki-agenten-absichern-bevor-sie-live-gehen) · [Mehrwert](#mehrwert-für-ihr-unternehmen) · [Sicherheit](#sicher-by-design) · [Demo](#demo) · [Pilot](#bereit-für-einen-pilot) · [Fahrplan](#vom-prototyp-zum-einsatz)
+[Lokal](#-vollständig-lokal-keine-daten-verlassen-ihr-unternehmen) · [Problem](#das-problem) · [Lösung](#die-lösung) · [Wächter](#der-wächter-prüft-täglich-meldet-nur-neues) · [SoD-Linter](#sod-linter-ki-agenten-absichern-bevor-sie-live-gehen) · [Mehrwert](#mehrwert-für-ihr-unternehmen) · [Sicherheit](#sicher-by-design) · [Demo](#demo) · [Einführung](#so-läuft-eine-einführung) · [Fahrplan](#vom-prototyp-zum-einsatz)
 
 </div>
 
@@ -237,16 +237,41 @@ flowchart LR
 
 Die KI formuliert, der Berechtigungs-Server prüft. Die Daten kommen aus Standardexporten des SAP-Systems. Der Linter prüft Agenten-Services mit demselben Regelwerk.
 
-## Bereit für einen Pilot
+## So läuft eine Einführung
 
-Ein Pilot über 4 bis 6 Wochen braucht vom Unternehmen nur vier Dinge:
+**Kein Zugriff auf Ihr SAP-System nötig.** Sie liefern Standardexporte, der Assistent läuft auf einem Rechner in Ihrem Haus, die Daten verlassen das Unternehmen nicht.
 
-1. **Exporte** der Tabellen USR02, USER_ADDR, AGR_USERS, AGR_TCODES und AGR_TEXTS, dazu die HR-Infotypen PA0000, PA0001, PA0105 und T527X, z. B. über SE16N
-2. **Das SoD-Regelwerk** mit Funktionen und Regeln
-3. **Die genehmigten Ausnahmen** mit Kontrolle und Gültigkeit
-4. **Das Rollenkonzept**: welche Rollen zu welcher Abteilung gehören
+| Woche | Was passiert | Ihr Aufwand |
+| --- | --- | --- |
+| **1** | Umfang festlegen (z. B. ein Mandant, Prozess Kreditoren und Zahlungen), Freigabe durch IT-Sicherheit und Datenschutz, Information des Betriebsrats | 2 bis 3 Termine |
+| **1** | Rechner im Firmennetz einrichten, lokales Sprachmodell installieren, danach offline | 1 Tag IT |
+| **1** | Exporte über SE16N durch Ihr Berechtigungsteam: USR02, USER_ADDR, AGR_USERS, AGR_TCODES, AGR_TEXTS, PA0000, PA0001, PA0105, T527X | 2 Stunden |
+| **1 bis 2** | Ihr SoD-Regelwerk, Ihre genehmigten Ausnahmen und Ihr Rollenkonzept werden übernommen, etwa aus GRC oder Excel | 1 bis 3 Tage, gemeinsam |
+| **2** | Abgleich der Befunde mit Ihrem bisherigen Prüfwerkzeug, Abweichungen werden geklärt | 1 Tag |
+| **2 bis 5** | Alltagsbetrieb: Wächter täglich, Chat für das Berechtigungsteam, Prüfbericht monatlich, wöchentlich neue Exporte | laufend gering |
+| **6** | Auswertung und Entscheidung | 1 Termin |
 
-Kein Zugriff auf das SAP-System nötig. **Der Pilot läuft vollständig lokal** auf einem Rechner oder Server des Unternehmens, die Daten verlassen das Haus nicht. Im Pilot werden die Befunde mit dem vorhandenen Prüfwerkzeug abgeglichen, bevor der Assistent im Alltag genutzt wird.
+**Was am Ende des Piloten auf dem Tisch liegt**
+
+| Kennzahl | Gemessen als |
+| --- | --- |
+| **Zeitersparnis** | Dauer der Berechtigungsprüfung vorher und mit dem Assistenten |
+| **Gefundene Risiken** | Befunde nach Priorität, davon wie viele bisher unbekannt waren |
+| **Fehlalarme** | Befunde, die sich als unbegründet herausgestellt haben |
+| **Bereinigung** | Wie viele Lösungsvorschläge übernommen wurden |
+
+**Wenn Sie eigene Anwendungen auf SAP BTP für KI-Agenten bauen**, kommt der SoD-Linter dazu: Er läuft in Ihrer CI-Pipeline und stoppt jedes Deployment mit SoD-Konflikt, mit demselben Regelwerk wie für Ihre Benutzer.
+
+<details>
+<summary><b>Was ein Pilot bewusst nicht leistet</b></summary>
+
+- Keine Live-Anbindung: Der Assistent sieht den Stand des letzten Exports
+- Geprüft werden Transaktionen und Funktionen, noch nicht Berechtigungsobjekte und Feldwerte wie in GRC
+- Sammelrollen werden noch nicht aufgelöst
+- Je nach SAP-Release und Spracheinstellung kann der Import an Ihre Exportformate angepasst werden müssen
+- Er ersetzt kein GRC oder IAG. Er macht Befunde schneller sichtbar, verständlich und täglich aktuell
+
+</details>
 
 ## Vom Prototyp zum Einsatz
 

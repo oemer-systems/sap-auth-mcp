@@ -9,7 +9,7 @@ import waechter
 def test_erster_lauf_meldet_alle_befunde_als_neu():
     e = waechter.lauf()
     assert e["erster_lauf"]
-    assert len(e["neu"]) == 18
+    assert len(e["neu"]) == 19
     assert waechter.ZUSTAND.exists()
 
 
@@ -18,7 +18,7 @@ def test_zweiter_lauf_meldet_nichts_neues():
     e = waechter.lauf()
     assert not e["erster_lauf"]
     assert e["neu"] == [] and e["erledigt"] == []
-    assert e["offen_gesamt"] == 18
+    assert e["offen_gesamt"] == 19
     assert e["bericht"] is None
 
 
@@ -37,15 +37,17 @@ def test_neuer_und_erledigter_befund_werden_erkannt():
 def test_neue_sod_befunde_bekommen_einen_vorschlag():
     e = waechter.lauf()
     mmuster = [b for b in e["neu"] if b["benutzer"] == "MMUSTER" and b["kategorie"] == "SoD-Konflikt"]
-    assert mmuster and all(b["vorschlag"] == "Rolle Z_FI_ZAHLLAUF entziehen" for b in mmuster)
+    assert mmuster and all(b["vorschlag"] == "Rolle Z_FI_ZAHLLAUF entziehen, in 13 Monaten nicht benötigt"
+                           for b in mmuster)
     jbecker = [b for b in e["neu"] if b["benutzer"] == "JBECKER" and b["kategorie"] == "SoD-Konflikt"]
-    assert jbecker and all("Ausnahme" in b["vorschlag"] for b in jbecker)
+    assert jbecker and all("Z_BC_ROLLENADMIN" in b["vorschlag"] and "Fachbereich" in b["vorschlag"]
+                           for b in jbecker)
 
 
 def test_bericht_wird_geschrieben():
     e = waechter.lauf()
     text = open(e["bericht"], encoding="utf-8").read()
-    assert "Neue Befunde (18)" in text
+    assert "Neue Befunde (19)" in text
     assert (waechter.AUSGABE / "waechter_letzter.json").exists()
 
 

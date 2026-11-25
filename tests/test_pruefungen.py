@@ -60,6 +60,23 @@ def test_inaktive_benutzer_mit_schwelle():
     assert {b["benutzer"] for b in server.inaktive_benutzer(30)["benutzer"]} == {"DSCHULZ", "FIREFIGHTER_01"}
 
 
+def test_zu_hohe_inaktiv_schwelle_wird_gesenkt():
+    # Mit 365 Tagen würden Benutzer, die z. B. 200 Tage inaktiv sind, aus der Liste verschwinden
+    ergebnis = server.inaktive_benutzer(365)
+    assert ergebnis["schwelle_tage"] == 90
+    assert "gesenkt" in ergebnis["hinweise"][0]
+    uebersicht = server.risiko_uebersicht(inaktiv_tage=365)
+    assert uebersicht["inaktiv_ab_tagen"] == 90
+    assert uebersicht["anzahl_befunde"] == 19
+
+
+def test_kleinere_inaktiv_schwelle_ist_erlaubt():
+    # So hat die KI im Chat aufgerufen: 30 Tage ergeben mehr Alarm, das ist zulässig
+    uebersicht = server.risiko_uebersicht(inaktiv_tage=30)
+    assert uebersicht["inaktiv_ab_tagen"] == 30 and uebersicht["hinweise"] == []
+    assert uebersicht["anzahl_befunde"] == 20
+
+
 def test_kritische_berechtigungen():
     treffer = {b["benutzer"] for b in server.kritische_berechtigungen()["benutzer"]}
     assert treffer == {"JBECKER", "FIREFIGHTER_01", "MMUSTER", "TSCHMIDT", "KBAUER"}
@@ -69,9 +86,24 @@ def test_kritische_berechtigungen():
 
 def test_risiko_uebersicht_zahlen():
     ergebnis = server.risiko_uebersicht()
-    assert ergebnis["anzahl_befunde"] == 18
-    assert ergebnis["nach_prioritaet"] == {"hoch": 9, "mittel": 2, "prüfen": 7}
+    assert ergebnis["anzahl_befunde"] == 19
+    assert ergebnis["nach_prioritaet"] == {"hoch": 9, "mittel": 2, "prüfen": 8}
     assert len(ergebnis["abgesicherte_konflikte"]) == 1
+
+
+def test_risiko_uebersicht_meldet_nicht_benoetigte_rolle_ohne_doppelung():
+    befunde = server.risiko_uebersicht()["befunde"]
+    neu = [b for b in befunde if b["kategorie"] == "Rolle nicht benötigt"]
+    assert [b["benutzer"] for b in neu] == ["JBECKER"]
+    assert "Z_BC_ROLLENADMIN" in neu[0]["detail"] and "SOD07" in neu[0]["detail"]
+    # MMUSTER und KBAUER: bestehender Befund wird ergänzt, kein zweiter Befund
+    rollenbefunde = ("Rolle außerhalb des Rollenkonzepts", "Rolle nicht benötigt")
+    mmuster = [b for b in befunde if b["benutzer"] == "MMUSTER" and b["kategorie"] in rollenbefunde]
+    assert len(mmuster) == 1
+    assert "Z_FI_ZAHLLAUF seit mindestens 13 Monaten" in mmuster[0]["detail"]
+    kbauer = [b for b in befunde if b["benutzer"] == "KBAUER" and b["kategorie"] in rollenbefunde]
+    assert len(kbauer) == 1 and kbauer[0]["kategorie"] == "Rolle außerhalb des Rollenkonzepts"
+    assert "Z_S4_GP_PFLEGE seit" in kbauer[0]["detail"]
 
 
 def test_risiko_uebersicht_ist_nach_prioritaet_sortiert():
@@ -108,6 +140,37 @@ def test_loesungsvorschlaege_mmuster():
     assert ergebnis["optionen"][0]["loest"] == ["SOD01", "SOD02", "SOD03"]
 
 
+def test_loesungsvorschlaege_kennen_die_nutzung():
+    option = server.loesungsvorschlaege("MMUSTER")["optionen"][0]
+    assert option["rolle_nicht_benoetigt"] is True
+    assert option["davon_genutzt"] == []
+
+
+def test_nicht_benoetigte_abteilungsrolle_wird_abgestimmt_nicht_empfohlen():
+    ergebnis = server.loesungsvorschlaege("JBECKER")
+    assert ergebnis["empfehlung"] is None
+    assert ergebnis["mit_fachbereich_abstimmen"] == "Z_BC_ROLLENADMIN"
+    # Fakten, die die KI sonst raten müsste
+    assert ergebnis["abteilung"] == "IT-Basis"
+    assert ergebnis["konflikte"][0]["regel_id"] == "SOD07"
+    assert ergebnis["konflikte"][0]["transaktionen"] == ["SU01", "PFCG"]
+    # Die Bewertung darf der Nutzung nicht widersprechen
+    beste = ergebnis["optionen"][0]
+    assert beste["rolle_entziehen"] == "Z_BC_ROLLENADMIN"
+    assert "nicht benötigt" in beste["bewertung"] and "eingeschränkt" not in beste["bewertung"]
+
+
+def test_ohne_nutzungsdaten_bleibt_es_bei_der_alten_reihenfolge(monkeypatch, tmp_path):
+    for datei in server.DATA.glob("*.csv"):
+        (tmp_path / datei.name).write_bytes(datei.read_bytes())
+    (tmp_path / "nutzung.csv").write_text("benutzer,tcode,monat,anzahl\n", encoding="utf-8")
+    monkeypatch.setattr(server, "DATA", tmp_path)
+    ergebnis = server.loesungsvorschlaege("JBECKER")
+    assert ergebnis["mit_fachbereich_abstimmen"] is None
+    assert all(o["davon_genutzt"] == "keine Nutzungsdaten" for o in ergebnis["optionen"])
+    assert server.loesungsvorschlaege("MMUSTER")["empfehlung"] == "Z_FI_ZAHLLAUF"
+
+
 def test_loesungsvorschlaege_ignorieren_abgesicherte_konflikte():
     ergebnis = server.loesungsvorschlaege("LKRAUSE")
     assert ergebnis["offene_konflikte"] == []
@@ -137,11 +200,24 @@ def test_nicht_benoetigte_rolle_kennt_abteilung_und_sod():
 
 
 def test_seltene_taetigkeit_zaehlt_bei_13_monaten():
-    # LKRAUSE nutzt FD32 nur im Dezember 2025
-    lang = {(e["benutzer"], e["rolle"]) for e in server.ungenutzte_rechte(13)["nicht_benoetigte_rollen"]}
-    kurz = {(e["benutzer"], e["rolle"]) for e in server.ungenutzte_rechte(6)["nicht_benoetigte_rollen"]}
-    assert ("LKRAUSE", "Z_FI_KREDITMANAGEMENT") not in lang
-    assert ("LKRAUSE", "Z_FI_KREDITMANAGEMENT") in kurz
+    # LKRAUSE nutzt FD32 nur im Dezember 2025, das liegt im 13-Monats-Zeitraum
+    gefunden = {(e["benutzer"], e["rolle"]) for e in server.ungenutzte_rechte()["nicht_benoetigte_rollen"]}
+    assert ("LKRAUSE", "Z_FI_KREDITMANAGEMENT") not in gefunden
+
+
+def test_zu_kurzer_zeitraum_wird_angehoben():
+    # So hat die KI im Chat aufgerufen: mit 6 Monaten wäre LKRAUSE ein falscher Alarm
+    ergebnis = server.ungenutzte_rechte(6)
+    assert ergebnis["zeitraum"] == "2025-11 bis 2026-11"
+    assert "angehoben" in ergebnis["hinweise"][0]
+    gefunden = {(e["benutzer"], e["rolle"]) for e in ergebnis["nicht_benoetigte_rollen"]}
+    assert ("LKRAUSE", "Z_FI_KREDITMANAGEMENT") not in gefunden
+
+
+def test_wie_lange_nicht_benoetigt():
+    rollen = {e["benutzer"]: e for e in server.ungenutzte_rechte()["nicht_benoetigte_rollen"]}
+    assert rollen["MMUSTER"]["zuletzt_genutzt"] is None
+    assert rollen["MMUSTER"]["nicht_benoetigt_seit"].startswith("mindestens 13 Monaten")
 
 
 def test_keine_doppelmeldung_und_notfallbenutzer_ausgenommen():

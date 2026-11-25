@@ -39,6 +39,9 @@ def zeige(rolle, text, aufrufe):
             with st.expander(f"{len(aufrufe)} Werkzeugaufruf(e)"):
                 for aufruf in aufrufe:
                     st.code(aufruf)
+        elif rolle == "assistant":
+            st.warning("Für diese Antwort wurde kein Werkzeug aufgerufen. Sie beruht nicht auf einer "
+                       "Prüfung der Daten. Bitte die Frage genauer stellen, z. B. mit Benutzer und Rolle.")
         st.markdown(text)
 
 

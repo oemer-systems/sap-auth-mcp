@@ -20,9 +20,13 @@ SYSTEM = (
     "nicht als offenen Befund. "
     "Wenn nach Lösungen gefragt wird, nutze das Werkzeug loesungsvorschlaege. "
     "Nenne nur Rollen, Transaktionen und Regeln, die wörtlich in Werkzeugergebnissen vorkommen. Erfinde keine Namen. "
+    "Rufe für jede Frage nach Fakten ein Werkzeug auf, auch bei kurzen Rückfragen wie 'ja'. "
+    "Gesperrte oder ausgetretene Benutzer werden nie entsperrt: Empfiehl für sie nur, die Rollen zu entziehen. "
     "Erkläre Ergebnisse verständlich. Entscheidungen trifft immer ein Mensch. "
     "Antworte auf Deutsch."
 )
+LEERE_ANTWORT = ("Das Sprachmodell hat keine Antwort erzeugt. Bitte die Frage noch einmal stellen, "
+                 "gern etwas anders formuliert.")
 SERVER = StdioServerParameters(
     command=sys.executable,
     args=[str(Path(__file__).parent / "server.py")],
@@ -75,7 +79,7 @@ async def _frage(verlauf, frage):
 
     verlauf[:] = nachrichten
     text = "\n".join(b.text for b in antwort.content if b.type == "text")
-    return text, aufrufe
+    return text or LEERE_ANTWORT, aufrufe
 
 
 async def _frage_lokal(verlauf, frage):
@@ -93,13 +97,18 @@ async def _frage_lokal(verlauf, frage):
         ollama = AsyncClient()
         while True:
             try:
-                antwort = await ollama.chat(
-                    model=LOKALES_MODELL,
-                    messages=[{"role": "system", "content": SYSTEM}] + nachrichten,
-                    tools=tools,
-                    think=False,
-                    options={"num_ctx": 16384},
-                )
+                # Erst schnell ohne Nachdenken. Bleibt die Antwort komplett leer (kein Text, kein
+                # Werkzeug), war das Modell ratlos: dann ein zweiter Versuch mit Nachdenken.
+                for denken in (False, True):
+                    antwort = await ollama.chat(
+                        model=LOKALES_MODELL,
+                        messages=[{"role": "system", "content": SYSTEM}] + nachrichten,
+                        tools=tools,
+                        think=denken,
+                        options={"num_ctx": 16384, "temperature": 0},  # 0: gleiche Frage, gleiche Antwort
+                    )
+                    if antwort.message.tool_calls or antwort.message.content:
+                        break
             except ConnectionError:
                 return "Ollama ist nicht erreichbar. Läuft das Programm Ollama?", aufrufe
             except ResponseError as fehler:
@@ -116,7 +125,7 @@ async def _frage_lokal(verlauf, frage):
                 nachrichten.append({"role": "tool", "tool_name": name, "content": ergebnis_als_text(result)})
 
     verlauf[:] = nachrichten
-    return antwort.message.content or "", aufrufe
+    return antwort.message.content or LEERE_ANTWORT, aufrufe
 
 
 def frage_stellen(verlauf, frage, modus="cloud"):

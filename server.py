@@ -132,10 +132,24 @@ def sod_pruefen(benutzer: str) -> dict:
     return ergebnis
 
 
+INAKTIV_TAGE_MAX = 90   # größere Werte würden inaktive Benutzer aus der Liste verschwinden lassen
+
+
+def begrenze_inaktiv_tage(tage):
+    """Senkt die Schwelle für Inaktivität auf höchstens 90 Tage. Kleinere Werte sind erlaubt,
+    denn sie erzeugen nur mehr Alarm. Liefert die Schwelle und gegebenenfalls einen Hinweis."""
+    if tage > INAKTIV_TAGE_MAX:
+        return INAKTIV_TAGE_MAX, (f"Schwelle von {tage} auf {INAKTIV_TAGE_MAX} Tage gesenkt, damit keine "
+                                  "inaktiven Benutzer aus der Prüfung fallen")
+    return tage, None
+
+
 @mcp.tool()
 def inaktive_benutzer(tage: int = 90) -> dict:
     """Findet aktive Benutzer, die sich seit mindestens `tage` Tagen nicht angemeldet haben,
-    aber noch Rollen besitzen. Typischer Prüfpunkt der Revision. Nur lesend."""
+    aber noch Rollen besitzen. Typischer Prüfpunkt der Revision. Die Schwelle beträgt höchstens
+    90 Tage, größere Angaben werden gesenkt. Nur lesend."""
+    tage, hinweis = begrenze_inaktiv_tage(tage)
     heute = date.today()
     treffer = []
     for b in lade("benutzer.csv"):
@@ -153,15 +167,17 @@ def inaktive_benutzer(tage: int = 90) -> dict:
                 "rollen": rollen,
             })
     treffer.sort(key=lambda t: t["tage_inaktiv"], reverse=True)
-    ergebnis = {"schwelle_tage": tage, "anzahl": len(treffer), "benutzer": treffer}
+    ergebnis = {"schwelle_tage": tage, "hinweise": [hinweis] if hinweis else [],
+                "anzahl": len(treffer), "benutzer": treffer}
     protokolliere("inaktive_benutzer", {"tage": tage}, ergebnis)
     return ergebnis
 
 
 @mcp.tool()
 def gesperrte_mit_rollen() -> dict:
-    """Findet gesperrte Benutzer, denen noch Rollen zugeordnet sind, z. B. ausgeschiedene
-    Mitarbeiter, deren Berechtigungen nicht entzogen wurden. Nur lesend."""
+    """Findet SAP-Benutzer mit Sperrkennzeichen, denen noch Rollen zugeordnet sind. Prüft nur den
+    Benutzerstatus in SAP. Für Fragen nach Mitarbeitern, die das Unternehmen verlassen haben,
+    nutze austritt_mit_rechten, denn das prüft zusätzlich die Personaldaten. Nur lesend."""
     treffer = []
     for b in lade("benutzer.csv"):
         if b["status"] != "gesperrt":
@@ -211,8 +227,10 @@ def kritische_berechtigungen() -> dict:
 
 @mcp.tool()
 def austritt_mit_rechten() -> dict:
-    """Findet Benutzer, die laut Personalabteilung ausgetreten sind, deren SAP-Benutzer aber
-    nicht gesperrt ist oder noch Rollen hat (Leaver-Prozess). Mit Bereinigungsvorschlag. Nur lesend."""
+    """Findet Mitarbeiter, die das Unternehmen verlassen haben (ausgetreten, ausgeschieden, gekündigt,
+    Leaver), deren SAP-Benutzer aber nicht gesperrt ist oder noch Rollen hat. Gleicht dafür die
+    Personaldaten mit SAP ab. Nutze dieses Werkzeug bei allen Fragen nach ehemaligen Mitarbeitern
+    mit Rechten oder Rollen. Mit Bereinigungsvorschlag. Nur lesend."""
     treffer = []
     for p in lade("personal.csv"):
         if p["status"] != "ausgetreten":
@@ -370,9 +388,10 @@ def simuliere_entzug(benutzer: str, rollen: list[str]) -> dict:
 @mcp.tool()
 def loesungsvorschlaege(benutzer: str) -> dict:
     """Ermittelt die besten Lösungen für die offenen SoD-Konflikte eines Benutzers. Simuliert den
-    Entzug jeder einzelnen zugeordneten Rolle und sortiert nach Wirkung: zuerst Lösungen, die alle
-    Konflikte lösen, ohne Rollen der eigenen Abteilung zu berühren. Nutze dieses Werkzeug, wenn
-    nach Lösungen gefragt wird, und nenne nur die Rollen aus seinem Ergebnis. Ändert nichts."""
+    Entzug jeder einzelnen zugeordneten Rolle und sortiert: zuerst Rollen, die laut Nutzungsdaten
+    nicht benötigt werden, dann Rollen außerhalb der eigenen Abteilung, dann nach Wirkung. Nutze
+    dieses Werkzeug, wenn nach Lösungen gefragt wird, und nenne nur die Rollen aus seinem Ergebnis.
+    Ändert nichts."""
     stamm = finde_benutzer(benutzer)
     if stamm is None:
         ergebnis = {"fehler": f"Benutzer {benutzer} nicht gefunden"}
@@ -380,7 +399,11 @@ def loesungsvorschlaege(benutzer: str) -> dict:
         return ergebnis
 
     kennung = stamm["benutzer"]
-    offen = [k["regel_id"] for k in sod_konflikte(kennung) if k["status"] != "abgesichert"]
+    offene_regeln = [k for k in sod_konflikte(kennung) if k["status"] != "abgesichert"]
+    offen = [k["regel_id"] for k in offene_regeln]
+    p = personaldaten(kennung)
+    genutzt = genutzte_tcodes(kennung, erster_monat(NUTZUNG_MONATE))
+    mit_nutzung = bool(genutzt)   # ohne Nutzungsdaten wird nichts als "nicht benötigt" bewertet
     optionen = []
     if offen:
         rollen, _ = transaktionen_von(kennung)
@@ -388,22 +411,39 @@ def loesungsvorschlaege(benutzer: str) -> dict:
             sim = berechne_entzug(kennung, [rolle])
             geloest = [r for r in sim["geloeste_konflikte"] if r in offen]
             if geloest:
+                wegfallend_genutzt = sorted(set(sim["verlorene_transaktionen"]) & genutzt)
                 optionen.append({
                     "rolle_entziehen": rolle,
                     "loest": geloest,
                     "loest_alle_offenen": len(geloest) == len(offen),
                     "verlorene_transaktionen": sim["verlorene_transaktionen"],
+                    "davon_genutzt": wegfallend_genutzt if mit_nutzung else "keine Nutzungsdaten",
+                    "rolle_nicht_benoetigt": mit_nutzung and not wegfallend_genutzt,
                     "rolle_gehoert_zur_abteilung": bool(sim["rollen_der_abteilung_betroffen"]),
                     "bewertung": sim["bewertung"],
                 })
-        optionen.sort(key=lambda o: (o["rolle_gehoert_zur_abteilung"], -len(o["loest"]),
-                                     len(o["verlorene_transaktionen"])))
+        for o in optionen:
+            if o["rolle_nicht_benoetigt"] and o["rolle_gehoert_zur_abteilung"]:
+                o["bewertung"] = (f"Rolle gehört zur Abteilung, wurde aber in {NUTZUNG_MONATE} Monaten nicht "
+                                  "benötigt: Entzug mit Fachbereich abstimmen")
+        optionen.sort(key=lambda o: (not o["rolle_nicht_benoetigt"], o["rolle_gehoert_zur_abteilung"],
+                                     -len(o["loest"]), len(o["verlorene_transaktionen"])))
 
+    beste = optionen[0] if optionen and optionen[0]["loest_alle_offenen"] else None
     ergebnis = {
         "benutzer": kennung,
+        "abteilung": p["abteilung"] if p else stamm["abteilung"],
         "offene_konflikte": offen,
-        "empfehlung": optionen[0]["rolle_entziehen"] if optionen and optionen[0]["loest_alle_offenen"]
-                      and not optionen[0]["rolle_gehoert_zur_abteilung"] else None,
+        # Was jeden Konflikt auslöst, damit die Erklärung nicht geraten werden muss
+        "konflikte": [{
+            "regel_id": k["regel_id"],
+            "beschreibung": k["beschreibung"],
+            "transaktionen": k["transaktionen_a"] + k["transaktionen_b"],
+        } for k in offene_regeln],
+        "empfehlung": beste["rolle_entziehen"] if beste and not beste["rolle_gehoert_zur_abteilung"] else None,
+        # Rolle der eigenen Abteilung, die nicht genutzt wird: kein Automatismus, der Fachbereich entscheidet
+        "mit_fachbereich_abstimmen": beste["rolle_entziehen"] if beste and beste["rolle_gehoert_zur_abteilung"]
+                                     and beste["rolle_nicht_benoetigt"] else None,
         "optionen": optionen,
         "alternative": "Ist keine Option passend, kann der Konflikt als Ausnahme mit Kontrolle genehmigt werden",
     }
@@ -424,6 +464,18 @@ def erster_monat(monate):
     return f"{index // 12}-{index % 12 + 1:02d}"
 
 
+def monate_zwischen(von, bis):
+    """Anzahl Monate zwischen zwei Monaten im Format 2026-03, z. B. 2025-12 bis 2026-11 ergibt 11."""
+    return (int(bis[:4]) - int(von[:4])) * 12 + int(bis[5:7]) - int(von[5:7])
+
+
+def letzte_nutzung(kennung, tcodes):
+    """Letzter Monat, in dem der Benutzer eine dieser Transaktionen aufgerufen hat, oder None."""
+    monate = [n["monat"] for n in lade("nutzung.csv")
+              if n["benutzer"] == kennung and n["tcode"] in tcodes and int(n["anzahl"]) > 0]
+    return max(monate) if monate else None
+
+
 def genutzte_tcodes(kennung, ab_monat):
     """Alle Transaktionen, die ein Benutzer seit ab_monat mindestens einmal aufgerufen hat."""
     return {
@@ -438,10 +490,17 @@ def ungenutzte_rechte(monate: int = NUTZUNG_MONATE, inaktiv_tage: int = 90) -> d
     verzichtbar, wenn ihr Entzug keine Transaktion kostet, die der Benutzer in den letzten `monate`
     Monaten genutzt hat. Zusätzlich: Rollen, von denen nur ein Teil genutzt wird. Gesperrte,
     ausgetretene, inaktive und Notfallbenutzer werden übersprungen, weil sie anderswo gemeldet
-    werden oder absichtlich selten genutzt sind. Nur lesend."""
-    ab = erster_monat(monate)
-    vorhandene_monate = sorted({n["monat"] for n in lade("nutzung.csv") if n["monat"] >= ab})
+    werden oder absichtlich selten genutzt sind. Der Zeitraum beträgt mindestens 13 Monate,
+    kürzere Angaben werden angehoben. Nur lesend."""
     hinweise = []
+    if monate < NUTZUNG_MONATE:
+        hinweise.append(f"Zeitraum von {monate} auf {NUTZUNG_MONATE} Monate angehoben, damit seltene "
+                        "Tätigkeiten wie der Jahresabschluss nicht fälschlich als nicht benötigt gelten")
+        monate = NUTZUNG_MONATE
+    ab = erster_monat(monate)
+    alle_monate = sorted({n["monat"] for n in lade("nutzung.csv")})
+    vorhandene_monate = [m for m in alle_monate if m >= ab]
+    aktueller_monat = date.today().isoformat()[:7]
     if not vorhandene_monate:
         ergebnis = {"fehler": "Keine Nutzungsdaten im Zeitraum. Ohne Daten wird kein Recht als ungenutzt gemeldet"}
         protokolliere("ungenutzte_rechte", {"monate": monate}, ergebnis)
@@ -480,10 +539,18 @@ def ungenutzte_rechte(monate: int = NUTZUNG_MONATE, inaktiv_tage: int = 90) -> d
         for rolle in rollen:
             sim = berechne_entzug(kennung, [rolle])
             if not set(sim["verlorene_transaktionen"]) & genutzt:
+                zuletzt = letzte_nutzung(kennung, sim["verlorene_transaktionen"])
+                if zuletzt:
+                    seit = f"{monate_zwischen(zuletzt, aktueller_monat)} Monaten (zuletzt genutzt {zuletzt})"
+                else:
+                    seit = (f"mindestens {monate_zwischen(alle_monate[0], aktueller_monat) + 1} Monaten "
+                            f"(nie genutzt, Nutzungsdaten ab {alle_monate[0]})")
                 nicht_benoetigt.append({
                     "benutzer": kennung,
                     "name": b["name"],
                     "rolle": rolle,
+                    "nicht_benoetigt_seit": seit,
+                    "zuletzt_genutzt": zuletzt,
                     "nie_genutzte_transaktionen": sim["verlorene_transaktionen"],
                     "rolle_gehoert_zur_abteilung": rolle in abteilung,
                     "loest_sod_konflikte": sim["geloeste_konflikte"],
@@ -516,9 +583,11 @@ REIHENFOLGE = {"hoch": 0, "mittel": 1, "prüfen": 2}
 @mcp.tool()
 def risiko_uebersicht(inaktiv_tage: int = 90) -> dict:
     """Führt alle Prüfungen über alle Benutzer zusammen: SoD-Konflikte, gesperrte und ausgetretene
-    Benutzer, inaktive Benutzer, kritische Berechtigungen, Rollen außerhalb des Rollenkonzepts und
-    bald ablaufende Ausnahmen. Liefert die Befunde nach Priorität sortiert. Die Priorität folgt
-    festen Regeln. Nur lesend."""
+    Benutzer, inaktive Benutzer, kritische Berechtigungen, Rollen außerhalb des Rollenkonzepts,
+    laut Nutzungsdaten nicht benötigte Rollen und bald ablaufende Ausnahmen. Liefert die Befunde nach Priorität sortiert. Die Priorität folgt
+    festen Regeln. Die Schwelle für Inaktivität beträgt höchstens 90 Tage. Nur lesend."""
+    angefragt = inaktiv_tage
+    inaktiv_tage, hinweis = begrenze_inaktiv_tage(inaktiv_tage)
     befunde = []
 
     abgesichert = []
@@ -585,14 +654,43 @@ def risiko_uebersicht(inaktiv_tage: int = 90) -> dict:
                       f'Vorschlag: {b["vorschlag"]}',
         })
 
+    # Nicht benötigte Rollen je Benutzer sammeln. Ohne Nutzungsdaten bleibt die Liste leer.
+    nutzung = ungenutzte_rechte(inaktiv_tage=inaktiv_tage)
+    nicht_benoetigt = {}
+    for r in nutzung.get("nicht_benoetigte_rollen", []):
+        nicht_benoetigt.setdefault(r["benutzer"], []).append(r)
+
     for b in rollen_ausserhalb_rollenkonzept()["benutzer"]:
         wechsel = b["art"] == "Wechsel ohne Bereinigung"
+        detail = f'{b["abteilung"]} seit {b["abteilung_seit"]}. {b["vorschlag"]}'
+        # Ist eine dieser Rollen auch nicht benötigt, wird der Befund ergänzt statt doppelt gemeldet
+        for r in [r for r in nicht_benoetigt.get(b["benutzer"], []) if r["rolle"] in b["unpassende_rollen"]]:
+            detail += f'. {r["rolle"]} seit {r["nicht_benoetigt_seit"]} nicht benötigt'
+            nicht_benoetigt[b["benutzer"]].remove(r)
         befunde.append({
             "prioritaet": "mittel" if wechsel else "prüfen",
             "kategorie": b["art"],
             "benutzer": b["benutzer"],
             "name": b["name"],
-            "detail": f'{b["abteilung"]} seit {b["abteilung_seit"]}. {b["vorschlag"]}',
+            "detail": detail,
+        })
+
+    # Übrig sind Rollen, die zur Abteilung passen, aber nicht genutzt werden: neu durch die Nutzungsdaten
+    for kennung, rollen in nicht_benoetigt.items():
+        if not rollen:
+            continue
+        teile = []
+        for r in rollen:
+            text = f'{r["rolle"]} seit {r["nicht_benoetigt_seit"]}'
+            if r["loest_sod_konflikte"]:
+                text += f', Entzug löst {", ".join(r["loest_sod_konflikte"])}'
+            teile.append(text)
+        befunde.append({
+            "prioritaet": "prüfen",
+            "kategorie": "Rolle nicht benötigt",
+            "benutzer": kennung,
+            "name": rollen[0]["name"],
+            "detail": "; ".join(teile) + ". Entzug mit Fachbereich abstimmen",
         })
 
     for a in ablaufende_ausnahmen()["ausnahmen"]:
@@ -607,12 +705,14 @@ def risiko_uebersicht(inaktiv_tage: int = 90) -> dict:
     befunde.sort(key=lambda x: REIHENFOLGE[x["prioritaet"]])
     ergebnis = {
         "stand": date.today().isoformat(),
+        "inaktiv_ab_tagen": inaktiv_tage,
+        "hinweise": [hinweis] if hinweis else [],
         "anzahl_befunde": len(befunde),
         "nach_prioritaet": {p: sum(1 for x in befunde if x["prioritaet"] == p) for p in REIHENFOLGE},
         "befunde": befunde,
         "abgesicherte_konflikte": abgesichert,
     }
-    protokolliere("risiko_uebersicht", {"inaktiv_tage": inaktiv_tage}, ergebnis)
+    protokolliere("risiko_uebersicht", {"inaktiv_tage": angefragt}, ergebnis)
     return ergebnis
 
 

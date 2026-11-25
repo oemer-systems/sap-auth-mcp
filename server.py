@@ -411,6 +411,105 @@ def loesungsvorschlaege(benutzer: str) -> dict:
     return ergebnis
 
 
+# Least Privilege: Rechte, die nicht genutzt werden
+
+NUTZUNG_MONATE = 13        # mehr als ein Jahr, damit seltene Tätigkeiten wie der Jahresabschluss mitzählen
+NOTFALLBENUTZER = ("FIREFIGHTER",)   # Kennungen mit diesem Anfang sind absichtlich selten im Einsatz
+
+
+def erster_monat(monate):
+    """Erster Monat des Betrachtungszeitraums als Text, z. B. 2025-11 bei 13 Monaten bis 2026-11."""
+    heute = date.today()
+    index = heute.year * 12 + heute.month - 1 - (monate - 1)
+    return f"{index // 12}-{index % 12 + 1:02d}"
+
+
+def genutzte_tcodes(kennung, ab_monat):
+    """Alle Transaktionen, die ein Benutzer seit ab_monat mindestens einmal aufgerufen hat."""
+    return {
+        n["tcode"] for n in lade("nutzung.csv")
+        if n["benutzer"] == kennung and n["monat"] >= ab_monat and int(n["anzahl"]) > 0
+    }
+
+
+@mcp.tool()
+def ungenutzte_rechte(monate: int = NUTZUNG_MONATE, inaktiv_tage: int = 90) -> dict:
+    """Least Privilege: Findet Rollen, die ein Benutzer im Zeitraum nicht benötigt hat. Eine Rolle ist
+    verzichtbar, wenn ihr Entzug keine Transaktion kostet, die der Benutzer in den letzten `monate`
+    Monaten genutzt hat. Zusätzlich: Rollen, von denen nur ein Teil genutzt wird. Gesperrte,
+    ausgetretene, inaktive und Notfallbenutzer werden übersprungen, weil sie anderswo gemeldet
+    werden oder absichtlich selten genutzt sind. Nur lesend."""
+    ab = erster_monat(monate)
+    vorhandene_monate = sorted({n["monat"] for n in lade("nutzung.csv") if n["monat"] >= ab})
+    hinweise = []
+    if not vorhandene_monate:
+        ergebnis = {"fehler": "Keine Nutzungsdaten im Zeitraum. Ohne Daten wird kein Recht als ungenutzt gemeldet"}
+        protokolliere("ungenutzte_rechte", {"monate": monate}, ergebnis)
+        return ergebnis
+    if len(vorhandene_monate) < monate:
+        hinweise.append(f"Nur {len(vorhandene_monate)} von {monate} Monaten mit Nutzungsdaten vorhanden. "
+                        "Seltene Tätigkeiten können fehlen, Befunde vorsichtig bewerten")
+
+    heute = date.today()
+    nicht_benoetigt, teilweise, ausgenommen = [], [], []
+    for b in lade("benutzer.csv"):
+        kennung = b["benutzer"]
+        rollen, _ = transaktionen_von(kennung)
+        if not rollen:
+            continue
+        p = personaldaten(kennung)
+        tage_inaktiv = (heute - date.fromisoformat(b["letzte_anmeldung"])).days
+        if kennung.startswith(NOTFALLBENUTZER):
+            grund = "Notfallbenutzer, wird absichtlich selten genutzt"
+        elif b["status"] != "aktiv":
+            grund = "gesperrt, wird als Gesperrt mit Rollen gemeldet"
+        elif p and p["status"] == "ausgetreten":
+            grund = "ausgetreten, wird als Austritt gemeldet"
+        elif tage_inaktiv >= inaktiv_tage:
+            grund = "inaktiv, wird als Inaktiver Benutzer gemeldet"
+        else:
+            grund = None
+        genutzt = genutzte_tcodes(kennung, ab)
+        if grund is None and not genutzt:
+            grund = "angemeldet, aber keine Nutzungsdaten: Datenlücke prüfen"
+        if grund:
+            ausgenommen.append({"benutzer": kennung, "grund": grund})
+            continue
+
+        abteilung = soll_rollen(p["abteilung"]) if p else set()
+        for rolle in rollen:
+            sim = berechne_entzug(kennung, [rolle])
+            if not set(sim["verlorene_transaktionen"]) & genutzt:
+                nicht_benoetigt.append({
+                    "benutzer": kennung,
+                    "name": b["name"],
+                    "rolle": rolle,
+                    "nie_genutzte_transaktionen": sim["verlorene_transaktionen"],
+                    "rolle_gehoert_zur_abteilung": rolle in abteilung,
+                    "loest_sod_konflikte": sim["geloeste_konflikte"],
+                })
+            else:
+                ungenutzt = sorted(set(tcodes_der_rollen([rolle])) - genutzt)
+                if ungenutzt:
+                    teilweise.append({
+                        "benutzer": kennung,
+                        "rolle": rolle,
+                        "ungenutzte_transaktionen": ungenutzt,
+                    })
+
+    ergebnis = {
+        "zeitraum": f"{ab} bis {vorhandene_monate[-1]}",
+        "monate_mit_daten": len(vorhandene_monate),
+        "hinweise": hinweise,
+        "anzahl_nicht_benoetigt": len(nicht_benoetigt),
+        "nicht_benoetigte_rollen": nicht_benoetigt,
+        "teilweise_genutzte_rollen": teilweise,
+        "ausgenommen": ausgenommen,
+    }
+    protokolliere("ungenutzte_rechte", {"monate": monate}, ergebnis)
+    return ergebnis
+
+
 REIHENFOLGE = {"hoch": 0, "mittel": 1, "prüfen": 2}
 
 

@@ -120,6 +120,54 @@ def test_simulation_aendert_keine_daten():
     assert server.transaktionen_von("AWEBER") == vorher
 
 
+# Least Privilege
+
+def test_nicht_benoetigte_rollen():
+    ergebnis = server.ungenutzte_rechte()
+    assert ergebnis["zeitraum"] == "2025-11 bis 2026-11"
+    gefunden = {(e["benutzer"], e["rolle"]) for e in ergebnis["nicht_benoetigte_rollen"]}
+    assert gefunden == {("MMUSTER", "Z_FI_ZAHLLAUF"), ("KBAUER", "Z_S4_GP_PFLEGE"),
+                        ("JBECKER", "Z_BC_ROLLENADMIN")}
+
+
+def test_nicht_benoetigte_rolle_kennt_abteilung_und_sod():
+    jbecker = next(e for e in server.ungenutzte_rechte()["nicht_benoetigte_rollen"] if e["benutzer"] == "JBECKER")
+    assert jbecker["rolle_gehoert_zur_abteilung"] is True
+    assert jbecker["loest_sod_konflikte"] == ["SOD07"]
+
+
+def test_seltene_taetigkeit_zaehlt_bei_13_monaten():
+    # LKRAUSE nutzt FD32 nur im Dezember 2025
+    lang = {(e["benutzer"], e["rolle"]) for e in server.ungenutzte_rechte(13)["nicht_benoetigte_rollen"]}
+    kurz = {(e["benutzer"], e["rolle"]) for e in server.ungenutzte_rechte(6)["nicht_benoetigte_rollen"]}
+    assert ("LKRAUSE", "Z_FI_KREDITMANAGEMENT") not in lang
+    assert ("LKRAUSE", "Z_FI_KREDITMANAGEMENT") in kurz
+
+
+def test_keine_doppelmeldung_und_notfallbenutzer_ausgenommen():
+    ausgenommen = {a["benutzer"] for a in server.ungenutzte_rechte()["ausgenommen"]}
+    assert {"NWOLF", "DSCHULZ", "FIREFIGHTER_01"} <= ausgenommen
+
+
+def test_teilweise_genutzte_rolle():
+    teilweise = server.ungenutzte_rechte()["teilweise_genutzte_rollen"]
+    entwickler = next(t for t in teilweise if t["benutzer"] == "JBECKER" and t["rolle"] == "Z_BC_ENTWICKLER")
+    assert entwickler["ungenutzte_transaktionen"] == ["SE38", "SM30"]
+
+
+def test_fehlende_monate_ergeben_hinweis():
+    ergebnis = server.ungenutzte_rechte(24)
+    assert "Nur 13 von 24 Monaten" in ergebnis["hinweise"][0]
+
+
+def test_ohne_nutzungsdaten_keine_befunde(monkeypatch, tmp_path):
+    for datei in server.DATA.glob("*.csv"):
+        (tmp_path / datei.name).write_bytes(datei.read_bytes())
+    (tmp_path / "nutzung.csv").write_text("benutzer,tcode,monat,anzahl\n", encoding="utf-8")
+    monkeypatch.setattr(server, "DATA", tmp_path)
+    assert "fehler" in server.ungenutzte_rechte()
+
+
 # Protokoll
 
 def test_jeder_aufruf_wird_protokolliert():

@@ -229,3 +229,5 @@ logs/
 berichte/
 zustand/
 zustand/
+__pycache__/
+__pycache__/

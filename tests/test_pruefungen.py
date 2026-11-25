@@ -140,7 +140,7 @@ def lies_csv(pfad):
 def test_import_ergibt_dieselben_daten(monkeypatch, tmp_path):
     monkeypatch.setattr(import_sap, "ZIEL", tmp_path)
     import_sap.main()
-    for datei in ["benutzer.csv", "benutzer_rollen.csv", "rollen.csv"]:
+    for datei in ["benutzer.csv", "benutzer_rollen.csv", "rollen.csv", "nutzung.csv"]:
         assert lies_csv(tmp_path / datei) == lies_csv(server.DATA / datei), datei
 
 

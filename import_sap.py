@@ -10,8 +10,10 @@ Erwartet im Ordner data/sap_export:
   PA0000.csv      Personalmaßnahmen: Beschäftigungsstatus, Eintritt, Austritt
   PA0001.csv      Organisatorische Zuordnung mit Gültigkeit
   T527X.csv       Bezeichnungen der Organisationseinheiten
+  ST03N_NUTZUNG.csv  Aufrufe je Benutzer, Transaktion und Monat (Nutzungsstatistik aus ST03N)
 
-Schreibt: data/benutzer.csv, data/benutzer_rollen.csv, data/rollen.csv, data/personal.csv
+Schreibt: data/benutzer.csv, data/benutzer_rollen.csv, data/rollen.csv, data/personal.csv,
+          data/nutzung.csv
 Das Regelwerk (funktionen, sod_regeln, transaktionen, ausnahmen) bleibt unverändert.
 """
 import csv
@@ -84,6 +86,23 @@ def importiere_personal(heute):
     return personal
 
 
+def importiere_nutzung():
+    """Liest die Nutzungsstatistik: wie oft ein Benutzer eine Transaktion in einem Monat aufgerufen hat.
+    Monat 202603 wird zu 2026-03. Zeilen ohne Aufrufe werden übersprungen."""
+    nutzung = []
+    for z in lies("ST03N_NUTZUNG.csv"):
+        anzahl = int(z["DIALOGSCHRITTE"] or 0)
+        if anzahl == 0:
+            continue
+        nutzung.append({
+            "benutzer": z["BENUTZER"],
+            "tcode": z["TCODE"],
+            "monat": f'{z["MONAT"][:4]}-{z["MONAT"][4:6]}',
+            "anzahl": anzahl,
+        })
+    return nutzung
+
+
 def schreibe(datei, felder, zeilen):
     with open(ZIEL / datei, "w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=felder, lineterminator="\n")
@@ -141,6 +160,9 @@ def main():
              ["benutzer", "personalnummer", "abteilung", "abteilung_seit", "status", "austritt"],
              personal)
 
+    nutzung = importiere_nutzung()
+    schreibe("nutzung.csv", ["benutzer", "tcode", "monat", "anzahl"], nutzung)
+
     gesperrte = sum(1 for b in benutzer if b["status"] == "gesperrt")
     print(f"Benutzer:          {len(benutzer)} (davon gesperrt: {gesperrte})")
     print(f"Rollenzuordnungen: {len(zuordnungen)} (nicht gültig, übersprungen: {uebersprungen})")
@@ -149,6 +171,9 @@ def main():
     ausgetreten = sum(1 for p in personal if p["status"] == "ausgetreten")
     print(f"Personaldaten:     {len(personal)} Benutzer verknüpft (davon ausgetreten: {ausgetreten})")
     print(f"Ohne Personalbezug: {', '.join(ohne_personal) or 'keine'}")
+    monate = sorted({n["monat"] for n in nutzung})
+    zeitraum = f"{monate[0]} bis {monate[-1]}" if monate else "keine Daten"
+    print(f"Nutzungsdaten:     {len(nutzung)} Einträge, {len(monate)} Monate ({zeitraum})")
 
 
 if __name__ == "__main__":

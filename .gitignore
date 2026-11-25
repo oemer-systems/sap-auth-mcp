@@ -225,9 +225,7 @@ __marimo__/
 # Zugriffsprotokoll
 logs/
 
-# Prüfberichte
+# Prï¿½fberichte
 berichte/
 zustand/
-zustand/
-__pycache__/
 __pycache__/

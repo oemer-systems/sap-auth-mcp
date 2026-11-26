@@ -244,6 +244,51 @@ def test_ohne_nutzungsdaten_keine_befunde(monkeypatch, tmp_path):
     assert "fehler" in server.ungenutzte_rechte()
 
 
+# Änderungswünsche
+
+def test_ausgetretene_werden_nie_entsperrt():
+    for kennung in ["NWOLF", "DSCHULZ"]:
+        ergebnis = server.aenderung_anfragen(kennung, "entsperren")
+        assert ergebnis["ausgefuehrt"] is False
+        assert ergebnis["zulaessig"] is False
+        assert "ausgetreten" in ergebnis["begruendung"]
+        assert "antrag" not in ergebnis
+
+
+def test_entzug_ergibt_antrag_mit_begruendung():
+    ergebnis = server.aenderung_anfragen("MMUSTER", "rollen_entziehen", ["Z_FI_ZAHLLAUF"])
+    assert ergebnis["ausgefuehrt"] is False and ergebnis["zulaessig"] is True
+    text = ergebnis["antrag_text"]
+    assert "Rollen entziehen" in text and "SOD01, SOD02, SOD03" in text
+    assert "nicht benötigt" in text and "Leitung Kreditorenbuchhaltung" in text
+    assert "nicht eingereicht" in text
+
+
+def test_entzug_einer_transaktion_statt_rolle_wird_abgelehnt():
+    ergebnis = server.aenderung_anfragen("MMUSTER", "rollen_entziehen", ["F110"])
+    assert ergebnis["zulaessig"] is False and "antrag" not in ergebnis
+
+
+def test_zuordnung_warnt_vor_neuen_konflikten():
+    ergebnis = server.aenderung_anfragen("TSCHMIDT", "rollen_zuordnen", ["Z_FI_AP_STAMMDATEN"])
+    assert ergebnis["zulaessig"] == "nur mit Ausnahme"
+    assert ergebnis["neue_konflikte"] == ["SOD01", "SOD02"]
+
+
+def test_ausgetretener_benutzer_soll_gesperrt_werden():
+    ergebnis = server.aenderung_anfragen("DSCHULZ", "sperren")
+    assert ergebnis["zulaessig"] is True
+    assert "ausgetreten" in ergebnis["antrag_text"]
+
+
+def test_aenderungswunsch_aendert_keine_daten():
+    vorher = {d.name: d.read_bytes() for d in server.DATA.glob("*.csv")}
+    server.aenderung_anfragen("MMUSTER", "rollen_entziehen", ["Z_FI_ZAHLLAUF"])
+    server.aenderung_anfragen("NWOLF", "entsperren")
+    server.aenderung_anfragen("TSCHMIDT", "rollen_zuordnen", ["Z_FI_AP_STAMMDATEN"])
+    assert {d.name: d.read_bytes() for d in server.DATA.glob("*.csv")} == vorher
+
+
 # Protokoll
 
 def test_jeder_aufruf_wird_protokolliert():

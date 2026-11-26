@@ -2,6 +2,7 @@ import csv
 import json
 from datetime import date, datetime
 from pathlib import Path
+from typing import Literal
 
 from mcp.server.mcpserver import MCPServer
 
@@ -574,6 +575,133 @@ def ungenutzte_rechte(monate: int = NUTZUNG_MONATE, inaktiv_tage: int = 90) -> d
         "ausgenommen": ausgenommen,
     }
     protokolliere("ungenutzte_rechte", {"monate": monate}, ergebnis)
+    return ergebnis
+
+
+# Änderungswünsche: nichts wird ausgeführt, nur geprüft und als Antrag vorbereitet
+
+NICHT_AUSGEFUEHRT = "Nicht ausgeführt. Dieser Assistent ändert keine Daten in SAP, es wurde nichts geändert."
+AKTIONEN = {"rollen_entziehen": "Rollen entziehen", "rollen_zuordnen": "Rollen zuordnen",
+            "entsperren": "Benutzer entsperren", "sperren": "Benutzer sperren"}
+
+
+def antrag_text(antrag):
+    """Formuliert einen Änderungsantrag als Text zum Kopieren in ein Ticket oder einen GRC-Antrag."""
+    zeilen = [f'Änderungsantrag (Entwurf): {AKTIONEN[antrag["aktion"]]}',
+              f'Benutzer: {antrag["benutzer"]} ({antrag["name"]}), Abteilung: {antrag["abteilung"]}']
+    if antrag.get("rollen"):
+        zeilen.append("Rollen: " + ", ".join(antrag["rollen"]))
+    zeilen.append("Begründung:")
+    zeilen += [f"- {b}" for b in antrag["begruendung"]]
+    zeilen.append(f'Freigabe durch: {antrag["freigabe_durch"]}')
+    zeilen.append("Status: Entwurf, nicht eingereicht. Ausführung nur über den Freigabeprozess des Unternehmens.")
+    return "\n".join(zeilen)
+
+
+@mcp.tool()
+def aenderung_anfragen(benutzer: str,
+                       aktion: Literal["rollen_entziehen", "rollen_zuordnen", "entsperren", "sperren"],
+                       rollen: list[str] | None = None) -> dict:
+    """Nutze dieses Werkzeug IMMER, wenn jemand etwas ändern möchte: Benutzer entsperren oder sperren,
+    Rollen entziehen oder zuordnen. Führt NICHTS aus. Prüft, ob die Änderung zulässig ist, und
+    bereitet bei Bedarf einen Änderungsantrag mit Begründung für den Freigabeprozess vor.
+    `rollen` sind Rollennamen wie Z_FI_ZAHLLAUF. Nur lesend."""
+    eingabe = {"benutzer": benutzer, "aktion": aktion, "rollen": rollen or []}
+    stamm = finde_benutzer(benutzer)
+    if stamm is None:
+        ergebnis = {"ausgefuehrt": False, "fehler": f"Benutzer {benutzer} nicht gefunden"}
+        protokolliere("aenderung_anfragen", eingabe, ergebnis)
+        return ergebnis
+
+    kennung = stamm["benutzer"]
+    p = personaldaten(kennung)
+    abteilung = p["abteilung"] if p else stamm["abteilung"]
+    ausgetreten = bool(p and p["status"] == "ausgetreten")
+    vorhanden, _ = transaktionen_von(kennung)
+    rollen = rollen or []
+    antrag = {"aktion": aktion, "benutzer": kennung, "name": stamm["name"], "abteilung": abteilung,
+              "rollen": rollen, "begruendung": [],
+              "freigabe_durch": f"Leitung {abteilung} (Fachbereich) und Berechtigungsverwaltung"}
+    ergebnis = {"ausgefuehrt": False, "hinweis": NICHT_AUSGEFUEHRT, "benutzer": kennung,
+                "aktion": aktion, "status_in_sap": stamm["status"]}
+
+    if aktion == "entsperren":
+        if ausgetreten:
+            ergebnis.update({
+                "zulaessig": False,
+                "begruendung": f'{kennung} ist laut Personaldaten am {p["austritt"]} ausgetreten. Ein Entsperren '
+                               "widerspricht dem Austrittsprozess.",
+                "richtiges_vorgehen": "Benutzer gesperrt lassen und alle Rollen entziehen",
+            })
+        elif stamm["status"] == "aktiv":
+            ergebnis.update({"zulaessig": False, "begruendung": f"{kennung} ist nicht gesperrt."})
+        else:
+            antrag["begruendung"] = ["Mitarbeiter ist laut Personaldaten beschäftigt",
+                                     "Grund der Sperre vor dem Entsperren klären"]
+            ergebnis.update({"zulaessig": "nur nach Prüfung des Sperrgrunds", "antrag": antrag})
+
+    elif aktion == "sperren":
+        if stamm["status"] != "aktiv":
+            ergebnis.update({"zulaessig": False, "begruendung": f"{kennung} ist bereits gesperrt."})
+        else:
+            antrag["begruendung"] = ([f'Mitarbeiter laut Personaldaten am {p["austritt"]} ausgetreten']
+                                     if ausgetreten else ["Grund der Sperre im Antrag angeben"])
+            ergebnis.update({"zulaessig": True, "antrag": antrag})
+
+    elif not rollen:
+        ergebnis.update({"zulaessig": False, "begruendung": "Keine Rollen angegeben."})
+
+    elif aktion == "rollen_entziehen":
+        fremd = [r for r in rollen if r not in vorhanden]
+        if fremd:
+            ergebnis.update({"zulaessig": False, "begruendung": "Nicht zugeordnet: " + ", ".join(fremd),
+                             "zugeordnete_rollen": vorhanden})
+        else:
+            sim = berechne_entzug(kennung, rollen)
+            genutzt = genutzte_tcodes(kennung, erster_monat(NUTZUNG_MONATE))
+            wegfallend_genutzt = sorted(set(sim["verlorene_transaktionen"]) & genutzt)
+            if sim["geloeste_konflikte"]:
+                antrag["begruendung"].append("Löst SoD-Konflikte: " + ", ".join(sim["geloeste_konflikte"]))
+            if genutzt and not wegfallend_genutzt:
+                antrag["begruendung"].append(f"In {NUTZUNG_MONATE} Monaten nicht benötigt: keine genutzte "
+                                             "Transaktion fällt weg")
+            elif wegfallend_genutzt:
+                antrag["begruendung"].append("Achtung, genutzte Transaktionen fallen weg: "
+                                             + ", ".join(wegfallend_genutzt))
+            if ausgetreten:
+                antrag["begruendung"].append(f'Mitarbeiter am {p["austritt"]} ausgetreten')
+            if sim["rollen_der_abteilung_betroffen"]:
+                antrag["begruendung"].append("Rollen der eigenen Abteilung betroffen: "
+                                             + ", ".join(sim["rollen_der_abteilung_betroffen"]))
+            antrag["begruendung"].append("Wegfallende Transaktionen: " + (", ".join(sim["verlorene_transaktionen"]) or "keine"))
+            ergebnis.update({"zulaessig": True, "simulation": sim, "antrag": antrag})
+
+    else:  # rollen_zuordnen
+        bekannt = {r["rolle"] for r in lade("rollen.csv")}
+        unbekannt = [r for r in rollen if r not in bekannt]
+        if ausgetreten:
+            ergebnis.update({"zulaessig": False,
+                             "begruendung": f'{kennung} ist am {p["austritt"]} ausgetreten. Keine neuen Rollen.'})
+        elif unbekannt:
+            ergebnis.update({"zulaessig": False, "begruendung": "Unbekannte Rollen: " + ", ".join(unbekannt)})
+        else:
+            _, vorher = transaktionen_von(kennung)
+            nachher = sorted(set(vorher) | set(tcodes_der_rollen(rollen)))
+            neue_konflikte = [r for r in regelverstoesse(nachher) if r not in regelverstoesse(vorher)]
+            ausserhalb = sorted(set(rollen) - soll_rollen(abteilung))
+            if neue_konflikte:
+                antrag["begruendung"].append("Achtung, neue SoD-Konflikte: " + ", ".join(neue_konflikte)
+                                             + ". Nur mit genehmigter Ausnahme und Kontrolle")
+            if ausserhalb:
+                antrag["begruendung"].append(f"Nicht im Rollenkonzept von {abteilung}: " + ", ".join(ausserhalb))
+            if not neue_konflikte and not ausserhalb:
+                antrag["begruendung"].append("Keine neuen SoD-Konflikte, passt zum Rollenkonzept")
+            ergebnis.update({"zulaessig": "nur mit Ausnahme" if neue_konflikte else True,
+                             "neue_konflikte": neue_konflikte, "antrag": antrag})
+
+    if "antrag" in ergebnis:
+        ergebnis["antrag_text"] = antrag_text(ergebnis["antrag"])
+    protokolliere("aenderung_anfragen", eingabe, ergebnis)
     return ergebnis
 
 

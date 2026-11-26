@@ -22,6 +22,8 @@ SYSTEM = (
     "Nenne nur Rollen, Transaktionen und Regeln, die wörtlich in Werkzeugergebnissen vorkommen. Erfinde keine Namen. "
     "Rufe für jede Frage nach Fakten ein Werkzeug auf, auch bei kurzen Rückfragen wie 'ja'. "
     "Gesperrte oder ausgetretene Benutzer werden nie entsperrt: Empfiehl für sie nur, die Rollen zu entziehen. "
+    "Bei jedem Änderungswunsch (entsperren, sperren, Rollen entziehen oder zuordnen) rufe aenderung_anfragen auf. "
+    "Du kannst nichts ändern: Sage klar, dass nichts ausgeführt wurde, und gib den vorbereiteten Antrag aus. "
     "Erkläre Ergebnisse verständlich. Entscheidungen trifft immer ein Mensch. "
     "Antworte auf Deutsch."
 )
@@ -128,7 +130,22 @@ async def _frage_lokal(verlauf, frage):
     return antwort.message.content or LEERE_ANTWORT, aufrufe
 
 
+WARNUNG_ENTSPERREN = ("\n\n---\n⚠️ Hinweis des Systems: Diese Antwort erwähnt das Entsperren, ohne dass der "
+                      "Änderungswunsch geprüft wurde. Ausgetretene Mitarbeiter werden nie entsperrt. "
+                      "Bitte mit „Darf ich <Benutzer> entsperren?“ prüfen lassen.")
+
+
+def pruefe_antwort(antwort, aufrufe):
+    """Feste Sicherung nach der KI: Spricht eine Antwort vom Entsperren, ohne dass aenderung_anfragen
+    die Zulässigkeit geprüft hat, wird ein Warnhinweis angehängt. Die KI kann das nicht umgehen."""
+    geprueft = any(a.startswith("aenderung_anfragen") for a in aufrufe)
+    if "entsperr" in antwort.lower() and not geprueft:
+        return antwort + WARNUNG_ENTSPERREN
+    return antwort
+
+
 def frage_stellen(verlauf, frage, modus="cloud"):
     """Einstiegspunkt für Terminal und Browser. modus: "cloud" oder "lokal"."""
     funktion = _frage_lokal if modus == "lokal" else _frage
-    return anyio.run(funktion, verlauf, frage)
+    antwort, aufrufe = anyio.run(funktion, verlauf, frage)
+    return pruefe_antwort(antwort, aufrufe), aufrufe

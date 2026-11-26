@@ -304,21 +304,24 @@ Einmalig bei der Einrichtung werden die Software und das Sprachmodell herunterge
 ## So funktioniert es
 
 ```mermaid
-flowchart LR
-    U[Mitarbeiter] --> A[Chat-Oberfläche]
-    A <--> K[KI-Modell<br>lokal oder Cloud]
-    A <-->|MCP| S[Berechtigungs-Server<br>Regeln und Protokoll]
-    S --> D[(Berechtigungsdaten)]
-    E[SAP-Exporte] -->|import_sap.py| D
-    S --> B[Prüfbericht<br>Excel]
-    W[Wächter<br>täglich] --> S
-    W --> R[Meldung<br>nur Neues]
-    C[CAP-Service<br>für KI-Agenten] -->|cds compile| L[SoD-Linter<br>vor dem Go-live]
-    RW[(Ein Regelwerk<br>für Menschen und Agenten)] --> S
-    RW --> L
+flowchart TD
+    F["1. Sie stellen eine Frage<br><i>Hat KBAUER SoD-Konflikte?</i>"]
+    K["2. Die KI wählt das passende Werkzeug"]
+    P["3. Fester Code prüft die Daten<br>nach Ihrem Regelwerk"]
+    E["4. Die KI erklärt das Ergebnis<br>in normaler Sprache"]
+    M["5. Ein Mensch entscheidet"]
+    D[("SAP-Exporte")]
+    F --> K --> P --> E --> M
+    D --> P
 ```
 
-Die KI formuliert, der Berechtigungs-Server prüft. Die Daten kommen aus Standardexporten des SAP-Systems. Der Linter prüft Agenten-Services mit demselben Regelwerk.
+| Wer | Macht | Macht nicht |
+| --- | --- | --- |
+| **KI** | Versteht die Frage, wählt das Werkzeug, formuliert die Antwort | Entscheidet nicht, ob ein Risiko vorliegt |
+| **Fester Code** | Prüft die Daten, berechnet Befunde und Prioritäten, protokolliert jeden Zugriff | Ändert nichts im SAP-System |
+| **Mensch** | Gibt Änderungen frei und setzt sie über den Freigabeprozess um | |
+
+Der Wächter und der SoD-Linter nutzen denselben festen Code und dasselbe Regelwerk, nur ohne Chat.
 
 ## So läuft eine Einführung
 

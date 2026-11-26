@@ -1,5 +1,7 @@
+import csv
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -99,8 +101,8 @@ async def _frage_lokal(verlauf, frage):
         ollama = AsyncClient()
         while True:
             try:
-                # Erst schnell ohne Nachdenken. Bleibt die Antwort komplett leer (kein Text, kein
-                # Werkzeug), war das Modell ratlos: dann ein zweiter Versuch mit Nachdenken.
+                # Erst schnell ohne Nachdenken. Zweiter Versuch mit Nachdenken, wenn die Antwort leer ist
+                # oder wenn die Frage einen Benutzer nennt, aber kein Werkzeug die Fakten geprüft hat.
                 for denken in (False, True):
                     antwort = await ollama.chat(
                         model=LOKALES_MODELL,
@@ -109,7 +111,8 @@ async def _frage_lokal(verlauf, frage):
                         think=denken,
                         options={"num_ctx": 16384, "temperature": 0},  # 0: gleiche Frage, gleiche Antwort
                     )
-                    if antwort.message.tool_calls or antwort.message.content:
+                    braucht_fakten = not aufrufe and nennt_benutzer(frage)
+                    if antwort.message.tool_calls or (antwort.message.content and not braucht_fakten):
                         break
             except ConnectionError:
                 return "Ollama ist nicht erreichbar. Läuft das Programm Ollama?", aufrufe
@@ -128,6 +131,15 @@ async def _frage_lokal(verlauf, frage):
 
     verlauf[:] = nachrichten
     return antwort.message.content or LEERE_ANTWORT, aufrufe
+
+
+def nennt_benutzer(frage):
+    """Erwähnt die Frage eine bekannte SAP-Kennung wie MMUSTER? Dann braucht die Antwort Fakten
+    aus einem Werkzeug. Liest dafür nur die Benutzerliste."""
+    with open(Path(__file__).parent / "data" / "benutzer.csv", encoding="utf-8", newline="") as f:
+        kennungen = {z["benutzer"] for z in csv.DictReader(f)}
+    woerter = set(re.findall(r"[A-Z0-9_]+", frage.upper()))
+    return bool(kennungen & woerter)
 
 
 WARNUNG_ENTSPERREN = ("\n\n---\n⚠️ Hinweis des Systems: Diese Antwort erwähnt das Entsperren, ohne dass der "

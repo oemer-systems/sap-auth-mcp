@@ -1,6 +1,6 @@
 import streamlit as st
 
-from agent import LOKALES_MODELL, frage_stellen
+from agent import LOKALES_MODELL, cloud_bereit, frage_stellen
 
 st.set_page_config(page_title="SAP-Berechtigungsassistent", page_icon="🔐")
 st.title("🔐 SAP-Berechtigungsassistent")
@@ -9,12 +9,17 @@ st.caption("Fragen zu Benutzern, Rollen und SoD-Konflikten. "
 
 with st.sidebar:
     st.subheader("Modell")
+    # Lokal ist die Voreinstellung: Ohne bewusste Entscheidung verlassen keine Daten den Rechner
     auswahl = st.radio(
         "Wo läuft das Sprachmodell?",
-        ["Cloud (Claude)", f"Lokal ({LOKALES_MODELL})"],
+        [f"Lokal ({LOKALES_MODELL})", "Cloud (Claude)"],
         help="Lokal: Fragen und Prüfergebnisse verlassen den Rechner nicht.",
     )
     modus = "lokal" if auswahl.startswith("Lokal") else "cloud"
+    if modus == "cloud" and not cloud_bereit():
+        st.warning("Kein API-Schlüssel gesetzt. Der Cloud-Modus funktioniert so nicht.")
+    elif modus == "cloud":
+        st.info("Cloud-Modus: Fragen und Prüfergebnisse werden an die Claude API gesendet.")
 
     st.subheader("Beispielfragen")
     st.markdown("- Erstelle eine Übersicht aller Berechtigungsrisiken.\n"

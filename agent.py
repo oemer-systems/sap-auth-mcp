@@ -43,10 +43,22 @@ def ergebnis_als_text(result):
     return text or json.dumps(result.structured_content, ensure_ascii=False)
 
 
+KEIN_SCHLUESSEL = ("Für den Cloud-Modus fehlt der API-Schlüssel. Wähle links „Lokal“, dann bleiben alle Daten "
+                   "auf diesem Rechner. Für den Cloud-Modus den Schlüssel vor dem Start als ANTHROPIC_API_KEY "
+                   "setzen, nie in eine Datei im Projekt schreiben.")
+
+
+def cloud_bereit():
+    """Ist ein API-Schlüssel für den Cloud-Modus gesetzt? Der Schlüssel selbst wird nie gelesen oder angezeigt."""
+    return bool(os.environ.get("ANTHROPIC_API_KEY", "").strip())
+
+
 async def _frage(verlauf, frage):
     """Cloud-Modus: beantwortet eine Frage mit Claude und den Werkzeugen des MCP-Servers."""
     nachrichten = verlauf + [{"role": "user", "content": frage}]
     aufrufe = []
+    if not cloud_bereit():
+        return KEIN_SCHLUESSEL, aufrufe
 
     async with Client(SERVER) as mcp:
         tools = [
@@ -60,7 +72,7 @@ async def _frage(verlauf, frage):
                     tools=tools, messages=nachrichten,
                 )
             except AuthenticationError:
-                return "API-Key fehlt oder ist ungültig. Bitte ANTHROPIC_API_KEY setzen.", aufrufe
+                return "Der API-Schlüssel wurde abgelehnt. Bitte prüfen oder links „Lokal“ wählen.", aufrufe
             except AnthropicError as fehler:
                 return f"Die KI-Anfrage ist fehlgeschlagen: {fehler}", aufrufe
 

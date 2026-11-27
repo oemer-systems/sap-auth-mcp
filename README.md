@@ -6,21 +6,24 @@
 
 **Ein KI-Assistent für SAP-Berechtigungen, der Risiken täglich selbst aufspürt und die Lösung gleich mitliefert.<br>Befunde liefert feste Regellogik, jeder Zugriff wird protokolliert.**
 
-**Neu in v0.6.0:** Least Privilege aus echten Nutzungsdaten. Der Assistent findet Rollen, die niemand braucht, und bereitet den Änderungsantrag gleich mit vor. Ein Prüfkatalog testet, ob die KI die richtigen Werkzeuge wählt.
+**Neu in v0.7.0:** Ein Befehl statt Python-Installation. Der Assistent läuft als fertiges Docker-Image, ohne Administratorrechte, mit Protokoll und Daten auf dem eigenen Rechner. Das Sprachmodell bleibt lokal.
+
+**Seit v0.6.0:** Least Privilege aus echten Nutzungsdaten, Änderungsanträge statt Änderungen und ein Prüfkatalog, der testet, ob die KI die richtigen Werkzeuge wählt.
 
 🔒 **Läuft vollständig lokal: ohne Cloud, ohne externe API, ohne dass Daten das Unternehmen verlassen.**
 
 [![Prüfung](https://github.com/oemer-systems/sap-auth-mcp/actions/workflows/pruefung.yml/badge.svg)](https://github.com/oemer-systems/sap-auth-mcp/actions/workflows/pruefung.yml)
-![Version](https://img.shields.io/badge/Version-0.6.0-blue)
+![Version](https://img.shields.io/badge/Version-0.7.0-blue)
 ![Status](https://img.shields.io/badge/Status-Pilotf%C3%A4hig-green)
 ![MCP](https://img.shields.io/badge/Standard-MCP-8A2BE2)
 ![SAP](https://img.shields.io/badge/Fokus-SAP_Security-0FAAFF)
 ![Lokal](https://img.shields.io/badge/Betrieb-100%25_lokal_m%C3%B6glich-success)
 ![Datenschutz](https://img.shields.io/badge/Daten-bleiben_im_Haus-success)
-![Tests](https://img.shields.io/badge/Tests-83_bestanden-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-86_bestanden-brightgreen)
+![Docker](https://img.shields.io/badge/Docker-ein_Befehl-2496ED)
 ![KI-Prüfkatalog](https://img.shields.io/badge/KI--Pr%C3%BCfkatalog-18%2F18-brightgreen)
 
-[Lokal](#-vollständig-lokal-keine-daten-verlassen-ihr-unternehmen) · [Problem](#das-problem) · [Lösung](#die-lösung) · [Wächter](#der-wächter-prüft-täglich-meldet-nur-neues) · [Least Privilege](#least-privilege-rechte-die-niemand-braucht) · [Prüfkatalog](#prüfkatalog-wir-testen-auch-die-ki) · [SoD-Linter](#sod-linter-ki-agenten-absichern-bevor-sie-live-gehen) · [Mehrwert](#mehrwert-für-ihr-unternehmen) · [Sicherheit](#sicher-by-design) · [Demo](#demo) · [Einführung](#so-läuft-eine-einführung) · [Fahrplan](#vom-prototyp-zum-einsatz)
+[Lokal](#-vollständig-lokal-keine-daten-verlassen-ihr-unternehmen) · [Problem](#das-problem) · [Lösung](#die-lösung) · [Wächter](#der-wächter-prüft-täglich-meldet-nur-neues) · [Least Privilege](#least-privilege-rechte-die-niemand-braucht) · [Prüfkatalog](#prüfkatalog-wir-testen-auch-die-ki) · [SoD-Linter](#sod-linter-ki-agenten-absichern-bevor-sie-live-gehen) · [Mehrwert](#mehrwert-für-ihr-unternehmen) · [Sicherheit](#sicher-by-design) · [Docker](#docker-ein-befehl-und-es-läuft) · [Demo](#demo) · [Einführung](#so-läuft-eine-einführung) · [Fahrplan](#vom-prototyp-zum-einsatz)
 
 </div>
 
@@ -81,6 +84,7 @@ Ein Assistent, den jeder in normaler Sprache fragen kann. Er greift über eine k
 | 🤖 | **SoD-Linter** für CAP-Services mit KI-Agenten, vor dem Deployment | `python linter/sod_linter.py csn.json xs-security.json` |
 | 🏷️ | **KI-Zuordnung**: Lokales Modell schlägt fehlende SoD-Funktionen vor, ein Mensch bestätigt | `--vorschlagen` |
 | 🎯 | **Prüfkatalog für die KI**: 18 Szenarien prüfen, ob das Modell die richtigen Werkzeuge wählt | `python szenarien.py` |
+| 🐳 | **Docker-Image**: Chat, Wächter und Tests mit einem Befehl, ohne Python-Installation | `docker compose up` |
 
 ## Mehrwert für Ihr Unternehmen
 
@@ -101,10 +105,11 @@ Ein Assistent, den jeder in normaler Sprache fragen kann. Er greift über eine k
 - **Simulation statt Ausführung:** Ein Rollenentzug wird durchgerechnet, nie ausgeführt
 - **Lückenlos protokolliert:** Jeder Werkzeugaufruf mit Zeit und Eingabe, unabhängig davon, was die KI über sich selbst sagt
 - **Datensparsam:** Die KI erhält nur die Ergebnisse der Prüfungen, nie den gesamten Berechtigungsbestand
-- **Vollständig lokal:** Mit dem lokalen Sprachmodell verlässt kein Zeichen den Rechner. Kein API-Key, kein Internet im Betrieb
+- **Vollständig lokal:** Mit dem lokalen Sprachmodell verlässt kein Zeichen den Rechner. Kein API-Key, kein Internet im Betrieb. Lokal ist die Voreinstellung, die Cloud muss bewusst gewählt werden
+- **Im Container ohne Administratorrechte:** Der Assistent läuft als eigener Benutzer, der nur in Protokoll, Berichte und Daten schreiben darf. Die GitHub-Prüfung stellt das bei jeder Änderung sicher
 - **Feste Grenzen für die KI:** Werte, mit denen die KI Befunde verstecken könnte, setzt der Code durch. Nutzung wird mindestens 13 Monate betrachtet, Inaktivität höchstens ab 90 Tagen. Ausgetretene Mitarbeiter werden nie entsperrt
 - **Ungeprüftes wird sichtbar:** Antworten ohne Werkzeugaufruf bekommen einen Warnhinweis, ebenso jede Erwähnung des Entsperrens ohne Prüfung
-- **Automatisch getestet:** 83 Tests sichern Prüfungen, Simulation, Wächter, Import und Linter ab. Der Prüfkatalog testet zusätzlich die Werkzeugwahl der KI
+- **Automatisch getestet:** 86 Tests sichern Prüfungen, Simulation, Wächter, Import und Linter ab, unter Windows und im Container. Der Prüfkatalog testet zusätzlich die Werkzeugwahl der KI
 
 **Feste Prioritätsregeln**
 
@@ -285,6 +290,43 @@ Einmalig bei der Einrichtung werden die Software und das Sprachmodell herunterge
 | **Formulierung und Empfehlungen** | Gut, bei komplexen Fragen einfacher | Sehr präzise |
 | **Voraussetzung** | Grafikkarte | API-Key und Internet |
 
+## Docker: ein Befehl, und es läuft
+
+Keine Python-Installation, keine Paketversionen, kein „bei mir läuft es aber“. Der Assistent kommt als fertiges Image. Das Sprachmodell bleibt auf dem eigenen Rechner, weil es die Grafikkarte braucht.
+
+```powershell
+docker compose up --build              # Chat im Browser unter http://localhost:8501
+docker compose run --rm waechter       # Wächter einmal ausführen
+docker compose run --rm tests          # alle Tests im Container
+docker compose down                    # beenden
+```
+
+```mermaid
+flowchart LR
+    subgraph R[Ihr Rechner]
+        O[Ollama<br>mit Grafikkarte]
+        subgraph C[Container]
+            A[Assistent, Server,<br>Wächter, Tests]
+        end
+        V[(Daten, Protokoll,<br>Berichte, Zustand)]
+    end
+    A <-->|host.docker.internal| O
+    A <--> V
+```
+
+| Eigenschaft | Umsetzung |
+| --- | --- |
+| **Kein Administrator** | Der Container läuft als Benutzer `assistent`, die GitHub-Prüfung schlägt sonst Alarm |
+| **Nur von diesem Rechner erreichbar** | Port `127.0.0.1:8501`, andere Geräte im Netzwerk kommen nicht heran |
+| **Keine Geheimnisse im Image** | Ein API-Schlüssel für den optionalen Cloud-Modus wird nur beim Start übergeben |
+| **Daten bleiben draußen** | Daten, Protokoll, Berichte und Wächter-Zustand liegen als Volume auf dem Rechner und überleben jeden Neustart |
+| **Richtige Uhrzeit** | Zeitzone im Container gesetzt, jede Protokollzeile trägt ihre Zeitzone |
+| **Gleiches Verhalten** | Prüfkatalog im Container: 18 von 18, identisch mit dem Betrieb ohne Docker |
+
+**Ohne Internet im Container:** Antwort des lokalen Modells bei ausgeschaltetem WLAN, der Assistent läuft im Container.
+
+![Docker offline](assets/docker-offline.png)
+
 ## Demo
 
 **Vollständig offline:** Antwort des lokalen Modells bei ausgeschaltetem WLAN. Kein Cloud-Dienst, keine API, die Berechtigungsdaten bleiben auf dem Rechner.
@@ -330,7 +372,7 @@ Der Wächter und der SoD-Linter nutzen denselben festen Code und dasselbe Regelw
 | Woche | Was passiert | Ihr Aufwand |
 | --- | --- | --- |
 | **1** | Umfang festlegen (z. B. ein Mandant, Prozess Kreditoren und Zahlungen), Freigabe durch IT-Sicherheit und Datenschutz, Information des Betriebsrats | 2 bis 3 Termine |
-| **1** | Rechner im Firmennetz einrichten, lokales Sprachmodell installieren, danach offline | 1 Tag IT |
+| **1** | Rechner im Firmennetz einrichten, lokales Sprachmodell installieren, Assistent als Docker-Container starten, danach offline | 1 Tag IT |
 | **1** | Exporte über SE16N durch Ihr Berechtigungsteam: USR02, USER_ADDR, AGR_USERS, AGR_TCODES, AGR_TEXTS, PA0000, PA0001, PA0105, T527X | 2 Stunden |
 | **1** | Nutzungsstatistik aus ST03N (Transaktionen je Benutzer und Monat), so weit zurück wie vorhanden | 1 Stunde |
 | **1 bis 2** | Ihr SoD-Regelwerk, Ihre genehmigten Ausnahmen und Ihr Rollenkonzept werden übernommen, etwa aus GRC oder Excel | 1 bis 3 Tage, gemeinsam |
@@ -371,7 +413,7 @@ Der Wächter und der SoD-Linter nutzen denselben festen Code und dasselbe Regelw
 | **3. Vorausdenken** | Wächter, Lösungsvorschläge, Simulation, HR-Abgleich, Rollenkonzept | ✅ v0.4.0 |
 | **4. Agenten absichern** | SoD-Linter für CAP-Services mit KI-Agenten, ein Regelwerk für Menschen und Agenten, KI-Zuordnung, CI mit GitHub Actions | ✅ v0.5.0 |
 | **5. Least Privilege** | Nutzungsdaten aus ST03N, nicht benötigte Rollen, Änderungsanträge, feste Grenzen für die KI, Prüfkatalog für die Werkzeugwahl | ✅ v0.6.0 |
-| **6. Einfach betreiben** | Fertiges Docker-Image, das lokale Sprachmodell läuft weiter auf dem Rechner | Geplant v0.7.0 |
+| **6. Einfach betreiben** | Fertiges Docker-Image ohne Administratorrechte, Volumes für Daten und Protokoll, Zeitzone, Lokal als Voreinstellung, Docker in der GitHub-Prüfung | ✅ v0.7.0 |
 | **7. Version 1.0** | Englische Dokumentation, Demo-Video, Abschnitt zu möglichen Erweiterungen | Geplant v1.0.0 |
 
 ---
@@ -379,7 +421,18 @@ Der Wächter und der SoD-Linter nutzen denselben festen Code und dasselbe Regelw
 <details>
 <summary><b>Installation und Bedienung</b></summary>
 
-Voraussetzungen: Python 3.13, Git. Für den Cloud-Modus ein API-Key aus der [Anthropic Console](https://console.anthropic.com), für den lokalen Modus [Ollama](https://ollama.com/download).
+**Mit Docker (empfohlen):** Voraussetzungen sind [Docker Desktop](https://www.docker.com/products/docker-desktop/) und [Ollama](https://ollama.com/download).
+
+```powershell
+git clone https://github.com/oemer-systems/sap-auth-mcp.git
+cd sap-auth-mcp
+ollama pull qwen3:8b
+docker compose up --build
+```
+
+Dann im Browser `http://localhost:8501` öffnen. Nach Änderungen am Code mit `--build` neu starten, das dauert dank Zwischenspeicher nur Sekunden.
+
+**Ohne Docker:** Voraussetzungen sind Python 3.13 und Git. Für den Cloud-Modus ein API-Key aus der [Anthropic Console](https://console.anthropic.com), für den lokalen Modus [Ollama](https://ollama.com/download).
 
 ```powershell
 git clone https://github.com/oemer-systems/sap-auth-mcp.git
@@ -422,7 +475,7 @@ pip install -r requirements.txt
 <details>
 <summary><b>Technik und Aufbau</b></summary>
 
-Python · MCP Python SDK 2.x · Claude API · Ollama · Streamlit · openpyxl · pytest · SAP CAP (CDS) · GitHub Actions
+Python · MCP Python SDK 2.x · Claude API · Ollama · Streamlit · openpyxl · pytest · SAP CAP (CDS) · GitHub Actions · Docker
 
 | Werkzeug | Funktion |
 | --- | --- |
@@ -449,11 +502,14 @@ Python · MCP Python SDK 2.x · Claude API · Ollama · Streamlit · openpyxl ·
 | `bericht.py` | Erstellt den Excel-Prüfbericht, ohne KI |
 | `waechter.py` / `waechter.bat` | Prüft alle Benutzer, meldet nur Änderungen, Start per Aufgabenplanung |
 | `szenarien.py` | Prüfkatalog: stellt 18 feste Fragen an das Sprachmodell und prüft die Werkzeugwahl |
+| `Dockerfile` | Rezept für das Image: schlankes Python, Zeitzone, eigener Benutzer ohne Administratorrechte |
+| `docker-compose.yml` | Startplan: Chat, Wächter und Tests mit Volumes für Daten, Protokoll, Berichte und Zustand |
+| `.dockerignore` | Was nicht ins Image gehört, vor allem Geheimnisse und Laufzeitdaten |
 | `linter/sod_linter.py` | SoD-Linter für CAP-Services: liest CSN und `xs-security.json`, prüft die Regeln R1 bis R4 |
 | `linter/ki_zuordnung.py` | Lokales Modell schlägt fehlende SoD-Funktionen vor, Antwort auf das Regelwerk beschränkt |
 | `beispiel-cap/` | CAP-Service mit absichtlich eingebauten Berechtigungsfehlern als Testobjekt |
-| `.github/workflows/pruefung.yml` | Tests und Linter bei jedem Push |
-| `tests/` | 83 automatische Tests mit festem Prüfdatum, das Sprachmodell wird im Test ersetzt |
+| `.github/workflows/pruefung.yml` | Tests, Linter und Docker-Image bei jedem Push, inklusive Prüfung von Benutzer und Zeitzone im Container |
+| `tests/` | 86 automatische Tests mit festem Prüfdatum, das Sprachmodell wird im Test ersetzt |
 | `data/` | Musterdaten und Regelwerk: Funktionen, SoD-Regeln, Transaktionen, Ausnahmen |
 | `data/sap_export/` | Musterexporte im Format der SAP-Tabellen, dazu die Nutzungsstatistik aus ST03N über 13 Monate |
 
@@ -478,6 +534,10 @@ Python · MCP Python SDK 2.x · Claude API · Ollama · Streamlit · openpyxl ·
 - Werkzeugbeschreibungen sind Teil der Sicherheit. Ein einziger veralteter Satz hat das Modell zum falschen Werkzeug geführt
 - Für ein Prüfwerkzeug gehört der Zufall abgeschaltet. Ein Prüfer muss ein Ergebnis wiederholen können
 - Neben dem Code braucht auch die KI einen eigenen Test: Welche Frage führt zu welchem Werkzeug?
+- Ein Container läuft ohne Angabe in UTC. Das Protokoll hatte dadurch Zeiten aus zwei Zeitzonen ohne Kennzeichnung. Jede Zeile trägt jetzt ihre Zeitzone
+- Im Dockerfile zuerst die Pakete, dann der Code. So baut ein Image nach einer Codeänderung in Sekunden statt in einer Minute neu
+- Sicherheitseigenschaften des Containers, etwa „kein Administrator“, werden in der GitHub-Prüfung getestet. Was nur im Kommentar steht, geht still verloren
+- Sicher als Voreinstellung: Wer den Chat öffnet und losfragt, arbeitet lokal. Die Cloud braucht eine bewusste Entscheidung
 
 </details>
 
@@ -516,6 +576,8 @@ Die Risikoübersicht liefert 19 Befunde: 9 hoch, 2 mittel, 8 prüfen, dazu 1 abg
 - Das lokale Modell formuliert bei komplexen Fragen einfacher als große Cloud-Modelle und verwechselt gelegentlich Nebenangaben, etwa einen Abteilungsnamen aus einem Rollenkürzel. Entscheidungsrelevante Fakten stammen immer aus den Werkzeugen und sind dort nachprüfbar
 - Die Nutzungsstatistik wird auf Ebene von Transaktionen ausgewertet. Wie lange ST03N sie vorhält, hängt von der Systemeinstellung ab, oft nur wenige Monate. Für 13 Monate müssen die Daten regelmäßig exportiert und gesammelt werden. Die Spaltennamen echter Exporte unterscheiden sich je nach Release und werden einmal in `import_sap.py` angepasst
 - Der Prüfkatalog belegt die Werkzeugwahl für 18 Fragen mit `qwen3:8b`. Andere Formulierungen oder Modelle können anders reagieren, deshalb gehört er zu jedem Wechsel des Modells
+- Das Sprachmodell läuft nicht im Container, sondern über Ollama auf dem Rechner. Das Image ist ausgepackt etwa 900 MB groß, vor allem wegen Streamlit
+- Das Image wird noch nicht in einer öffentlichen Registry veröffentlicht, es wird aus dem Repository gebaut
 
 </details>
 

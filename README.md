@@ -23,7 +23,7 @@
 ![Docker](https://img.shields.io/badge/Docker-ein_Befehl-2496ED)
 ![KI-Prüfkatalog](https://img.shields.io/badge/KI--Pr%C3%BCfkatalog-18%2F18-brightgreen)
 
-[Lokal](#-vollständig-lokal-keine-daten-verlassen-ihr-unternehmen) · [Problem](#das-problem) · [Lösung](#die-lösung) · [Wächter](#der-wächter-prüft-täglich-meldet-nur-neues) · [Least Privilege](#least-privilege-rechte-die-niemand-braucht) · [Prüfkatalog](#prüfkatalog-wir-testen-auch-die-ki) · [SoD-Linter](#sod-linter-ki-agenten-absichern-bevor-sie-live-gehen) · [Mehrwert](#mehrwert-für-ihr-unternehmen) · [Sicherheit](#sicher-by-design) · [Docker](#docker-ein-befehl-und-es-läuft) · [Demo](#demo) · [Einführung](#so-läuft-eine-einführung) · [Fahrplan](#vom-prototyp-zum-einsatz)
+[Lokal](#-vollständig-lokal-keine-daten-verlassen-ihr-unternehmen) · [Problem](#das-problem) · [Lösung](#die-lösung) · [Wächter](#der-wächter-prüft-täglich-meldet-nur-neues) · [Least Privilege](#least-privilege-rechte-die-niemand-braucht) · [Prüfkatalog](#prüfkatalog-wir-testen-auch-die-ki) · [SoD-Linter](#sod-linter-ki-agenten-absichern-bevor-sie-live-gehen) · [Mehrwert](#mehrwert-für-ihr-unternehmen) · [Sicherheit](#sicher-by-design) · [Docker](#docker-ein-befehl-und-es-läuft) · [Demo](#demo) · [Einführung](#so-läuft-eine-einführung) · [Fahrplan](#vom-prototyp-zum-einsatz) · [Erweiterungen](#mögliche-erweiterungen)
 
 </div>
 
@@ -415,6 +415,37 @@ Der Wächter und der SoD-Linter nutzen denselben festen Code und dasselbe Regelw
 | **5. Least Privilege** | Nutzungsdaten aus ST03N, nicht benötigte Rollen, Änderungsanträge, feste Grenzen für die KI, Prüfkatalog für die Werkzeugwahl | ✅ v0.6.0 |
 | **6. Einfach betreiben** | Fertiges Docker-Image ohne Administratorrechte, Volumes für Daten und Protokoll, Zeitzone, Lokal als Voreinstellung, Docker in der GitHub-Prüfung | ✅ v0.7.0 |
 | **7. Version 1.0** | Englische Dokumentation, Demo-Video, Abschnitt zu möglichen Erweiterungen | Geplant v1.0.0 |
+
+## Mögliche Erweiterungen
+
+Was ein Unternehmen über den Pilot hinaus bräuchte, nach Nutzen und Aufwand eingeschätzt. Nichts davon ist umgesetzt.
+
+**Für den Einsatz im Unternehmen**
+
+| Erweiterung | Nutzen | Aufwand | Voraussetzung |
+| --- | --- | --- | --- |
+| Live-Anbindung an SAP (RFC oder OData) statt Exporten | Immer aktuell, kein manueller Export | Hoch | Testsystem, technischer Benutzer mit Leserechten |
+| Prüfung von Berechtigungsobjekten und Feldwerten | Genauigkeit wie in GRC, etwa je Buchungskreis | Hoch | Export AGR_1251, Regelwerk auf Objektebene |
+| Sammelrollen auflösen (AGR_AGRS) | In vielen Unternehmen Standard | Gering | Export AGR_AGRS |
+| Anmeldung und Benutzerbezug im Protokoll | Nachweis, wer was gefragt hat | Mittel | Anbindung an das Firmenverzeichnis |
+| Benachrichtigung des Wächters per Mail oder Teams | Befunde kommen zum Team, statt abgeholt zu werden | Gering | Zugang zu Mail oder Teams |
+
+**Für den Freigabeprozess**
+
+| Erweiterung | Nutzen | Aufwand |
+| --- | --- | --- |
+| Änderungsantrag direkt als Entwurf in GRC oder IAG anlegen | Kein Kopieren mehr, der Antrag landet im bestehenden Prozess | Mittel, braucht Zugang zur Schnittstelle |
+| Rezertifizierung: Der Fachbereich bestätigt Rollen regelmäßig, mit Erklärung in einfacher Sprache | Erfüllt eine typische Prüfungsanforderung | Mittel |
+
+**Für KI-Agenten auf SAP BTP**
+
+| Erweiterung | Nutzen | Aufwand |
+| --- | --- | --- |
+| Feste Schranke zur Laufzeit: Ein Agent darf nie mehr als der Mensch, für den er arbeitet | Schließt die Lücke, die der Linter nur vor dem Go-live prüft | Hoch, braucht SAP BTP |
+| SoD innerhalb einer Agenten-Sitzung | Verhindert, dass ein Agent zwei Hälften eines Konflikts nacheinander ausführt | Hoch |
+| Linter-Regel R5 für `where`-Bedingungen in `@restrict` | Weniger Fehlalarme bei eingeschränkten Rollen | Mittel |
+
+**Bewusst nicht geplant:** Schreibzugriff durch die KI. Eine KI, die Rechte vorschlägt und selbst vergibt, wäre genau der Konflikt, vor dem SOD07 warnt. Ausgeführt wird immer über den Freigabeprozess des Unternehmens.
 
 ---
 

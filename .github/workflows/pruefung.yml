@@ -19,10 +19,8 @@ jobs:
           python-version: "3.13"
 
       - name: Pakete installieren
-        # pywin32 gibt es nur für Windows, deshalb wird es hier herausgefiltert
-        run: |
-          grep -v -i "^pywin32" requirements.txt > requirements-ci.txt
-          pip install -r requirements-ci.txt
+        # pywin32 wird über seinen Umgebungsmarker unter Linux von selbst ausgelassen
+        run: pip install -r requirements.txt
 
       - name: Alle Tests ausführen
         run: python -m pytest
@@ -54,4 +52,36 @@ jobs:
             echo '```'
             cat ergebnis.txt
             echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  docker:
+    name: Docker-Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code holen
+        uses: actions/checkout@v5
+
+      - name: Image bauen
+        run: docker build -t sap-auth-mcp:ci .
+
+      - name: Alle Tests im Container ausführen
+        run: docker run --rm sap-auth-mcp:ci python -m pytest -q -p no:cacheprovider
+
+      - name: Sicherheit prüfen
+        # Der Container darf nicht als Administrator laufen und muss in Berlin-Zeit rechnen
+        run: |
+          benutzer=$(docker run --rm sap-auth-mcp:ci whoami)
+          echo "Benutzer im Container: $benutzer"
+          test "$benutzer" = "assistent"
+          zone=$(docker run --rm sap-auth-mcp:ci date +%Z)
+          echo "Zeitzone im Container: $zone"
+          test "$zone" = "CET" -o "$zone" = "CEST"
+
+      - name: Größe in der Zusammenfassung anzeigen
+        run: |
+          {
+            echo "## Docker-Image"
+            echo "| Name | Größe |"
+            echo "| --- | --- |"
+            docker image ls sap-auth-mcp:ci --format "| {{.Repository}}:{{.Tag}} | {{.Size}} |"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -23,3 +23,17 @@ def test_frage_mit_benutzer_braucht_fakten():
     assert agent.nennt_benutzer("hat jbecker konflikte?")
     assert not agent.nennt_benutzer("ja")
     assert not agent.nennt_benutzer("Was ist ein SoD-Konflikt?")
+
+
+def test_cloud_ohne_schluessel_gibt_klare_meldung(monkeypatch):
+    # Vorher kam eine lange Fehlerausgabe. Jetzt eine verständliche Meldung, ohne dass etwas gesendet wird
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    antwort, aufrufe = agent.frage_stellen([], "Hat KBAUER SoD-Konflikte?", "cloud")
+    assert antwort == agent.KEIN_SCHLUESSEL and aufrufe == []
+
+
+def test_cloud_bereit_erkennt_leeren_schluessel(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "  ")
+    assert not agent.cloud_bereit()
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    assert agent.cloud_bereit()

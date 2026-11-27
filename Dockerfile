@@ -12,6 +12,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
+# Zeitzone: Ohne diese Angabe rechnet ein Container in UTC, in Berlin also eine Stunde falsch.
+# tzdata enthält die Zeitzonen, TZ wählt eine aus. Beim Start mit TZ=... änderbar.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tzdata \
+    && rm -rf /var/lib/apt/lists/*
+ENV TZ=Europe/Berlin
+
 # Arbeitsordner im Image
 WORKDIR /app
 

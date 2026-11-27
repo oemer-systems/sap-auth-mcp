@@ -1,0 +1,48 @@
+# Startplan für den SAP-Berechtigungsassistenten.
+#
+#   docker compose up --build              Chat im Browser unter http://localhost:8501
+#   docker compose run --rm waechter       Wächter einmal ausführen
+#   docker compose run --rm tests          Alle Tests im Container
+#   docker compose down                    Alles beenden
+#
+# Ollama läuft weiter auf dem eigenen Rechner, nicht im Container.
+
+# Gemeinsame Einstellungen für alle Dienste. Das & gibt ihnen einen Namen, <<: * übernimmt sie unten.
+x-gemeinsam: &gemeinsam
+  build: .
+  image: sap-auth-mcp:dev
+  volumes:
+    # Ordner auf dem eigenen Rechner : Ordner im Container.
+    # Daten, Protokoll, Berichte und Wächter-Zustand bleiben so auf dem Rechner und überleben jeden Neustart.
+    - ./data:/app/data
+    - ./logs:/app/logs
+    - ./berichte:/app/berichte
+    - ./zustand:/app/zustand
+  environment:
+    # Zeitzone für Protokoll und Prüfungen. Standard Europe/Berlin, mit TZ=... beim Start änderbar
+    - TZ=${TZ:-Europe/Berlin}
+  extra_hosts:
+    # Unter Docker Desktop ohnehin vorhanden, unter Linux nötig, damit der Container Ollama findet
+    - "host.docker.internal:host-gateway"
+
+services:
+  assistent:
+    <<: *gemeinsam
+    container_name: sap-assistent
+    ports:
+      # Nur von diesem Rechner erreichbar, nicht von anderen Geräten im Netzwerk
+      - "127.0.0.1:8501:8501"
+    environment:
+      - TZ=${TZ:-Europe/Berlin}
+      # Nur für den optionalen Cloud-Modus. Der Schlüssel wird beim Start übergeben, nie im Image gespeichert.
+      - ANTHROPIC_API_KEY
+
+  waechter:
+    <<: *gemeinsam
+    profiles: ["werkzeuge"]
+    command: ["python", "waechter.py"]
+
+  tests:
+    <<: *gemeinsam
+    profiles: ["werkzeuge"]
+    command: ["python", "-m", "pytest", "-q", "-p", "no:cacheprovider"]

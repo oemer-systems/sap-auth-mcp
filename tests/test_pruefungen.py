@@ -318,3 +318,13 @@ def test_import_ueberspringt_abgelaufene_rollenzuordnung(monkeypatch, tmp_path):
     import_sap.main()
     zuordnungen = lies_csv(tmp_path / "benutzer_rollen.csv")
     assert {"benutzer": "PKLEIN", "rolle": "Z_MM_EINKAUF"} not in zuordnungen
+
+
+def test_protokoll_enthaelt_zeitzone():
+    # Im Container läuft die Uhr sonst ohne Hinweis in UTC. Mit Zeitzone ist jede Zeile eindeutig
+    import json
+    from datetime import datetime
+    server.benutzer_rollen("MMUSTER")
+    zeile = json.loads(server.LOG.read_text(encoding="utf-8").strip().splitlines()[-1])
+    zeit = datetime.fromisoformat(zeile["zeit"])
+    assert zeit.tzinfo is not None

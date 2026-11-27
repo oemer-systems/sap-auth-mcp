@@ -22,7 +22,8 @@ def protokolliere(werkzeug, eingabe, ergebnis):
     """Schreibt jeden Werkzeugaufruf als eine Zeile in logs/zugriffe.jsonl."""
     LOG.parent.mkdir(exist_ok=True)
     eintrag = {
-        "zeit": datetime.now().isoformat(timespec="seconds"),
+        # Mit Zeitzone, z. B. 2026-11-27T22:44:55+01:00. So ist jede Zeile eindeutig, egal wo sie entstand
+        "zeit": datetime.now().astimezone().isoformat(timespec="seconds"),
         "werkzeug": werkzeug,
         "eingabe": eingabe,
         "erfolgreich": "fehler" not in ergebnis,

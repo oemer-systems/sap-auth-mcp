@@ -1,0 +1,29 @@
+# Was nicht ins Docker-Image gehört.
+# Das Image soll nur enthalten, was zum Laufen nötig ist, und nie Geheimnisse oder echte Daten.
+
+# Git und GitHub
+.git
+.github
+
+# Lokale Python-Umgebung und Zwischendateien: werden im Image neu erzeugt
+.venv
+venv
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Laufzeitdaten: kommen als Volume von außen, damit sie Neustarts überleben
+logs/
+berichte/
+zustand/
+
+# Geheimnisse: dürfen nie in ein Image
+.env
+.streamlit/secrets.toml
+claude_desktop_config.json
+
+# Nur für die Entwicklung
+diagnose.py
+beispiel-cap/node_modules/
+assets/
+*.pdf

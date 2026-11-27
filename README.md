@@ -1,5 +1,7 @@
 <div align="center">
 
+🇩🇪 **Deutsch** · [🇬🇧 English](README.en.md)
+
 # SAP-Berechtigungsassistent
 
 ### Finden, erklären, lösen. Der Mensch gibt nur noch frei.

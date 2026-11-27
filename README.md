@@ -23,7 +23,7 @@
 ![Docker](https://img.shields.io/badge/Docker-ein_Befehl-2496ED)
 ![KI-Prüfkatalog](https://img.shields.io/badge/KI--Pr%C3%BCfkatalog-18%2F18-brightgreen)
 
-[Lokal](#-vollständig-lokal-keine-daten-verlassen-ihr-unternehmen) · [Problem](#das-problem) · [Lösung](#die-lösung) · [Wächter](#der-wächter-prüft-täglich-meldet-nur-neues) · [Least Privilege](#least-privilege-rechte-die-niemand-braucht) · [Prüfkatalog](#prüfkatalog-wir-testen-auch-die-ki) · [SoD-Linter](#sod-linter-ki-agenten-absichern-bevor-sie-live-gehen) · [Mehrwert](#mehrwert-für-ihr-unternehmen) · [Sicherheit](#sicher-by-design) · [Docker](#docker-ein-befehl-und-es-läuft) · [Demo](#demo) · [Einführung](#so-läuft-eine-einführung) · [Fahrplan](#vom-prototyp-zum-einsatz) · [Erweiterungen](#mögliche-erweiterungen)
+[Lokal](#-vollständig-lokal-keine-daten-verlassen-ihr-unternehmen) · [Problem](#das-problem) · [Lösung](#die-lösung) · [Wächter](#der-wächter-prüft-täglich-meldet-nur-neues) · [Least Privilege](#least-privilege-rechte-die-niemand-braucht) · [Prüfkatalog](#prüfkatalog-wir-testen-auch-die-ki) · [SoD-Linter](#sod-linter-ki-agenten-absichern-bevor-sie-live-gehen) · [Mehrwert](#mehrwert-für-ihr-unternehmen) · [Sicherheit](#sicher-by-design) · [Docker](#docker-ein-befehl-und-es-läuft) · [Demo](#demo) · [Einführung](#so-läuft-eine-einführung) · [Fahrplan](#vom-prototyp-zum-einsatz) · [Erweiterungen](#mögliche-erweiterungen) · [Änderungen](CHANGELOG.md)
 
 </div>
 

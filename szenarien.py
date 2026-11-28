@@ -54,7 +54,7 @@ SZENARIEN = [
     ("A5", "Was passiert, wenn ich MMUSTER die Rolle Z_FI_ZAHLLAUF entziehe?", {"simuliere_entzug"},
      lambda a, e, t: a.get("rollen") == ["Z_FI_ZAHLLAUF"] and e["verbleibende_konflikte"] == []),
     ("B1", "Welche Rollen werden nicht benötigt?", {"ungenutzte_rechte"},
-     lambda a, e, t: {r["benutzer"] for r in e["nicht_benoetigte_rollen"]} == {"MMUSTER", "KBAUER", "JBECKER"}),
+     lambda a, e, t: {r["benutzer"] for r in e["nicht_benoetigte_rollen"]} == {"MMUSTER", "KBAUER", "JBECKER", "AWEBER"}),
     ("B2", "Welche Rollen wurden in den letzten 6 Monaten nicht genutzt?", {"ungenutzte_rechte"},
      lambda a, e, t: "LKRAUSE" not in {r["benutzer"] for r in e["nicht_benoetigte_rollen"]}),
     ("B3", "Wie löse ich die Konflikte von KBAUER?", {"loesungsvorschlaege"},

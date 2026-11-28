@@ -65,3 +65,12 @@ def test_fakten_text_trennt_behoben_und_neu():
     text = waechter.fakten_text(neu, ["SoD-Konflikt | MMUSTER | SOD01"], 13)
     assert "1 neue Befunde, 1 behobene Befunde, 13 Befunde" in text
     assert text.index("BEHOBEN") < text.index("SOD01") < text.index("NEU AUFGETRETEN") < text.index("NWOLF")
+
+
+
+def test_vorschlag_nennt_den_abteilungswechsel():
+    """AWEBER: Die Einkaufsrolle wird seit dem Wechsel nicht genutzt, nicht seit 13 Monaten."""
+    e = waechter.lauf()
+    aweber = [b for b in e["neu"] if b["benutzer"] == "AWEBER" and b.get("vorschlag")]
+    assert aweber and all(b["vorschlag"] == "Rolle Z_MM_EINKAUF entziehen, seit dem Abteilungswechsel am "
+                          "2026-10-01 nicht genutzt" for b in aweber)

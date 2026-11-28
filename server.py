@@ -407,8 +407,8 @@ def loesungsvorschlaege(benutzer: str) -> dict:
     offene_regeln = [k for k in sod_konflikte(kennung) if k["status"] != "abgesichert"]
     offen = [k["regel_id"] for k in offene_regeln]
     p = personaldaten(kennung)
-    genutzt = genutzte_tcodes(kennung, erster_monat(NUTZUNG_MONATE))
-    mit_nutzung = bool(genutzt)   # ohne Nutzungsdaten wird nichts als "nicht benötigt" bewertet
+    standard = erster_monat(NUTZUNG_MONATE)
+    mit_nutzung = bool(genutzte_tcodes(kennung, standard))   # ohne Nutzungsdaten wird nichts als "nicht benötigt" bewertet
     optionen = []
     if offen:
         rollen, _ = transaktionen_von(kennung)
@@ -416,7 +416,8 @@ def loesungsvorschlaege(benutzer: str) -> dict:
             sim = berechne_entzug(kennung, [rolle])
             geloest = [r for r in sim["geloeste_konflikte"] if r in offen]
             if geloest:
-                wegfallend_genutzt = sorted(set(sim["verlorene_transaktionen"]) & genutzt)
+                beginn = nutzungsbeginn(kennung, rolle)
+                wegfallend_genutzt = sorted(set(sim["verlorene_transaktionen"]) & genutzte_tcodes(kennung, beginn))
                 optionen.append({
                     "rolle_entziehen": rolle,
                     "loest": geloest,
@@ -425,6 +426,8 @@ def loesungsvorschlaege(benutzer: str) -> dict:
                     "davon_genutzt": wegfallend_genutzt if mit_nutzung else "keine Nutzungsdaten",
                     "rolle_nicht_benoetigt": mit_nutzung and not wegfallend_genutzt,
                     "rolle_gehoert_zur_abteilung": bool(sim["rollen_der_abteilung_betroffen"]),
+                    # Rolle der alten Abteilung: Nutzung zählt erst seit dem Wechsel an diesem Datum
+                    "nutzung_seit_wechsel": p["abteilung_seit"] if beginn != standard else None,
                     "bewertung": sim["bewertung"],
                 })
         for o in optionen:
@@ -472,6 +475,17 @@ def erster_monat(monate):
 def monate_zwischen(von, bis):
     """Anzahl Monate zwischen zwei Monaten im Format 2026-03, z. B. 2025-12 bis 2026-11 ergibt 11."""
     return (int(bis[:4]) - int(von[:4])) * 12 + int(bis[5:7]) - int(von[5:7])
+
+
+def nutzungsbeginn(kennung, rolle, ab=None):
+    """Ab welchem Monat die Nutzung einer Rolle zählt. Normal: der ganze Zeitraum (13 Monate). Gehört die Rolle
+    nicht zur aktuellen Abteilung, zählt die Nutzung erst ab dem Abteilungswechsel. Für den neuen Job braucht
+    niemand die Rollen des alten, der Schutz für seltene Tätigkeiten wie den Jahresabschluss greift hier nicht."""
+    ab = ab or erster_monat(NUTZUNG_MONATE)
+    p = personaldaten(kennung)
+    if p and p["status"] == "beschäftigt" and rolle not in soll_rollen(p["abteilung"]):
+        return max(ab, p["abteilung_seit"][:7])
+    return ab
 
 
 def letzte_nutzung(kennung, tcodes):
@@ -525,10 +539,10 @@ def ungenutzte_rechte(monate: int = NUTZUNG_MONATE, inaktiv_tage: int = 90) -> d
         tage_inaktiv = (heute - date.fromisoformat(b["letzte_anmeldung"])).days
         if kennung.startswith(NOTFALLBENUTZER):
             grund = "Notfallbenutzer, wird absichtlich selten genutzt"
-        elif b["status"] != "aktiv":
-            grund = "gesperrt, wird als Gesperrt mit Rollen gemeldet"
         elif p and p["status"] == "ausgetreten":
             grund = "ausgetreten, wird als Austritt gemeldet"
+        elif b["status"] != "aktiv":
+            grund = "gesperrt, wird als Gesperrt mit Rollen gemeldet"
         elif tage_inaktiv >= inaktiv_tage:
             grund = "inaktiv, wird als Inaktiver Benutzer gemeldet"
         else:
@@ -543,25 +557,32 @@ def ungenutzte_rechte(monate: int = NUTZUNG_MONATE, inaktiv_tage: int = 90) -> d
         abteilung = soll_rollen(p["abteilung"]) if p else set()
         for rolle in rollen:
             sim = berechne_entzug(kennung, [rolle])
-            if not set(sim["verlorene_transaktionen"]) & genutzt:
+            beginn = nutzungsbeginn(kennung, rolle, ab)
+            genutzt_rolle = genutzt if beginn == ab else genutzte_tcodes(kennung, beginn)
+            if not set(sim["verlorene_transaktionen"]) & genutzt_rolle:
                 zuletzt = letzte_nutzung(kennung, sim["verlorene_transaktionen"])
-                if zuletzt:
-                    seit = f"{monate_zwischen(zuletzt, aktueller_monat)} Monaten (zuletzt genutzt {zuletzt})"
+                wechsel = p["abteilung_seit"] if beginn != ab else None
+                if wechsel:
+                    nutzung = f"seit dem Abteilungswechsel am {wechsel} nicht genutzt"
+                    nutzung += f" (zuletzt {zuletzt})" if zuletzt else ""
+                elif zuletzt:
+                    nutzung = f"seit {monate_zwischen(zuletzt, aktueller_monat)} Monaten nicht genutzt (zuletzt {zuletzt})"
                 else:
-                    seit = (f"mindestens {monate_zwischen(alle_monate[0], aktueller_monat) + 1} Monaten "
-                            f"(nie genutzt, Nutzungsdaten ab {alle_monate[0]})")
+                    nutzung = (f"in {monate_zwischen(alle_monate[0], aktueller_monat) + 1} Monaten Nutzungsdaten "
+                               f"(ab {alle_monate[0]}) nie genutzt")
                 nicht_benoetigt.append({
                     "benutzer": kennung,
                     "name": b["name"],
                     "rolle": rolle,
-                    "nicht_benoetigt_seit": seit,
+                    "nutzung": nutzung,
+                    "nutzung_seit_wechsel": wechsel,
                     "zuletzt_genutzt": zuletzt,
                     "nie_genutzte_transaktionen": sim["verlorene_transaktionen"],
                     "rolle_gehoert_zur_abteilung": rolle in abteilung,
                     "loest_sod_konflikte": sim["geloeste_konflikte"],
                 })
             else:
-                ungenutzt = sorted(set(tcodes_der_rollen([rolle])) - genutzt)
+                ungenutzt = sorted(set(tcodes_der_rollen([rolle])) - genutzt_rolle)
                 if ungenutzt:
                     teilweise.append({
                         "benutzer": kennung,
@@ -662,13 +683,15 @@ def aenderung_anfragen(benutzer: str,
                              "zugeordnete_rollen": vorhanden})
         else:
             sim = berechne_entzug(kennung, rollen)
-            genutzt = genutzte_tcodes(kennung, erster_monat(NUTZUNG_MONATE))
+            beginn = min(nutzungsbeginn(kennung, r) for r in rollen)
+            genutzt = genutzte_tcodes(kennung, beginn)
             wegfallend_genutzt = sorted(set(sim["verlorene_transaktionen"]) & genutzt)
             if sim["geloeste_konflikte"]:
                 antrag["begruendung"].append("Löst SoD-Konflikte: " + ", ".join(sim["geloeste_konflikte"]))
             if genutzt and not wegfallend_genutzt:
-                antrag["begruendung"].append(f"In {NUTZUNG_MONATE} Monaten nicht benötigt: keine genutzte "
-                                             "Transaktion fällt weg")
+                zeitraum = (f'Seit dem Abteilungswechsel am {p["abteilung_seit"]} nicht genutzt'
+                            if beginn != erster_monat(NUTZUNG_MONATE) else f"In {NUTZUNG_MONATE} Monaten nicht benötigt")
+                antrag["begruendung"].append(f"{zeitraum}: keine genutzte Transaktion fällt weg")
             elif wegfallend_genutzt:
                 antrag["begruendung"].append("Achtung, genutzte Transaktionen fallen weg: "
                                              + ", ".join(wegfallend_genutzt))
@@ -762,12 +785,17 @@ def risiko_uebersicht(inaktiv_tage: int = 90) -> dict:
             })
 
     for b in gesperrte_mit_rollen()["benutzer"]:
+        p = personaldaten(b["benutzer"])
+        ausgetreten = bool(p and p["status"] == "ausgetreten")
         befunde.append({
-            "prioritaet": "hoch",
-            "kategorie": "Gesperrt mit Rollen",
+            # Ausgetreten, aber gesperrt: keine Anmeldung möglich, Restrisiko nur bei versehentlichem
+            # Entsperren. Darum mittel, im Unterschied zu "Ausgetreten, Benutzer aktiv" (hoch).
+            "prioritaet": "mittel" if ausgetreten else "hoch",
+            "kategorie": "Ausgetreten, gesperrt, Rollen nicht entzogen" if ausgetreten else "Gesperrt mit Rollen",
             "benutzer": b["benutzer"],
             "name": b["name"],
-            "detail": "Rollen: " + ", ".join(b["rollen"]),
+            "detail": (f'Austritt am {p["austritt"]}. ' if ausgetreten else "") + "Rollen: " + ", ".join(b["rollen"])
+                      + (". Vorschlag: alle Rollen entziehen" if ausgetreten else ""),
         })
 
     for b in inaktive_benutzer(inaktiv_tage)["benutzer"]:
@@ -813,9 +841,22 @@ def risiko_uebersicht(inaktiv_tage: int = 90) -> dict:
         wechsel = b["art"] == "Wechsel ohne Bereinigung"
         detail = f'{b["abteilung"]} seit {b["abteilung_seit"]}. {b["vorschlag"]}'
         # Ist eine dieser Rollen auch nicht benötigt, wird der Befund ergänzt statt doppelt gemeldet
-        for r in [r for r in nicht_benoetigt.get(b["benutzer"], []) if r["rolle"] in b["unpassende_rollen"]]:
-            detail += f'. {r["rolle"]} seit {r["nicht_benoetigt_seit"]} nicht benötigt'
+        passende = [r for r in nicht_benoetigt.get(b["benutzer"], []) if r["rolle"] in b["unpassende_rollen"]]
+        if wechsel and passende and len(passende) == len(b["unpassende_rollen"]) \
+                and all(r["nutzung_seit_wechsel"] for r in passende):
+            detail += ". Seit dem Wechsel wurde keine dieser Rollen genutzt"
+        else:
+            for r in passende:
+                detail += f'. {r["rolle"]} {r["nutzung"]}'
+        for r in passende:
             nicht_benoetigt[b["benutzer"]].remove(r)
+        if wechsel:
+            # Einzeln ist jede Rolle verzichtbar, zusammen können sie eine weiter genutzte Transaktion enthalten
+            alle = berechne_entzug(b["benutzer"], b["unpassende_rollen"])["verlorene_transaktionen"]
+            weiter_genutzt = sorted(set(alle) & genutzte_tcodes(b["benutzer"], b["abteilung_seit"][:7]))
+            if weiter_genutzt:
+                detail += (f'. Achtung: Beim Entzug aller fällt das weiter genutzte {", ".join(weiter_genutzt)} '
+                           "weg, Ersatz in einer Rolle der neuen Abteilung prüfen")
         befunde.append({
             "prioritaet": "mittel" if wechsel else "prüfen",
             "kategorie": b["art"],
@@ -830,7 +871,7 @@ def risiko_uebersicht(inaktiv_tage: int = 90) -> dict:
             continue
         teile = []
         for r in rollen:
-            text = f'{r["rolle"]} seit {r["nicht_benoetigt_seit"]}'
+            text = f'{r["rolle"]} {r["nutzung"]}'
             if r["loest_sod_konflikte"]:
                 text += f', Entzug löst {", ".join(r["loest_sod_konflikte"])}'
             teile.append(text)

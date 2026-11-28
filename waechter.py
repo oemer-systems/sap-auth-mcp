@@ -52,9 +52,14 @@ def ergaenze_vorschlaege(befunde):
             bereits_berechnet[b["benutzer"]] = server.loesungsvorschlaege(b["benutzer"])
         v = bereits_berechnet[b["benutzer"]]
         if v["empfehlung"]:
-            nicht_benoetigt = v["optionen"][0]["rolle_nicht_benoetigt"]
-            b["vorschlag"] = f'Rolle {v["empfehlung"]} entziehen' + (
-                f", in {server.NUTZUNG_MONATE} Monaten nicht benötigt" if nicht_benoetigt else "")
+            option = v["optionen"][0]
+            if not option["rolle_nicht_benoetigt"]:
+                grund = ""
+            elif option["nutzung_seit_wechsel"]:
+                grund = f', seit dem Abteilungswechsel am {option["nutzung_seit_wechsel"]} nicht genutzt'
+            else:
+                grund = f", in {server.NUTZUNG_MONATE} Monaten nicht benötigt"
+            b["vorschlag"] = f'Rolle {v["empfehlung"]} entziehen' + grund
         elif v["mit_fachbereich_abstimmen"]:
             b["vorschlag"] = (f'Rolle {v["mit_fachbereich_abstimmen"]} gehört zur Abteilung, wurde aber in '
                               f'{server.NUTZUNG_MONATE} Monaten nicht benötigt: Entzug mit Fachbereich abstimmen')

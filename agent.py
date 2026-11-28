@@ -288,7 +288,10 @@ def optionsliste(vorschlaege):
               for o in vorschlaege["optionen"]]
     teile = [f"### Lösungsvorschläge {vorschlaege['benutzer']} ({vorschlaege['abteilung']})",
              f"Offene Konflikte: {', '.join(vorschlaege['offene_konflikte'])}.", "",
-             tabelle(("Rolle entziehen", "Löst", "Fällt weg", "Davon in 13 Monaten genutzt", "Bewertung"), zeilen)]
+             tabelle(("Rolle entziehen", "Löst", "Fällt weg", "Davon genutzt", "Bewertung"), zeilen)]
+    wechsel = next((o["nutzung_seit_wechsel"] for o in vorschlaege["optionen"] if o.get("nutzung_seit_wechsel")), None)
+    teile += ["", "Gezählt wird die Nutzung der letzten 13 Monate" + (
+        f", bei Rollen der alten Abteilung erst seit dem Abteilungswechsel am {datum(wechsel)}." if wechsel else ".")]
     if vorschlaege.get("mit_fachbereich_abstimmen"):
         teile += ["", f"Mit dem Fachbereich abstimmen: {vorschlaege['mit_fachbereich_abstimmen']}."]
     teile += ["", f"Alternative: {vorschlaege['alternative']}."]
@@ -305,7 +308,10 @@ def einordnung_loesungen(vorschlaege):
     if empfehlung:
         option = next(o for o in vorschlaege["optionen"] if o["rolle_entziehen"] == empfehlung)
         satz = f"**Empfehlung für {benutzer}: Rolle {empfehlung} entziehen.** Das löst {', '.join(option['loest'])}"
-        if option["rolle_nicht_benoetigt"] or not option["davon_genutzt"]:
+        if option.get("nutzung_seit_wechsel") and option["rolle_nicht_benoetigt"]:
+            satz += (f", und seit dem Abteilungswechsel am {datum(option['nutzung_seit_wechsel'])} wurde keine "
+                     "ihrer Transaktionen genutzt.")
+        elif option["rolle_nicht_benoetigt"] or not option["davon_genutzt"]:
             satz += ", und keine in 13 Monaten genutzte Transaktion fällt weg."
         else:
             satz += (f". Dabei fällt die genutzte Transaktion {', '.join(option['davon_genutzt'])} weg: "
@@ -323,8 +329,8 @@ def ungenutzte_liste(ergebnis):
     teile = []
     if ergebnis["nicht_benoetigte_rollen"]:
         teile += ["### Nicht benötigte Rollen", tabelle(
-            ("Benutzer", "Rolle", "Nicht benötigt seit", "Gehört zur Abteilung", "Entzug löst"),
-            [(f"{r['name']} ({r['benutzer']})", r["rolle"], r["nicht_benoetigt_seit"],
+            ("Benutzer", "Rolle", "Nutzung", "Gehört zur Abteilung", "Entzug löst"),
+            [(f"{r['name']} ({r['benutzer']})", r["rolle"], r["nutzung"],
               "ja" if r["rolle_gehoert_zur_abteilung"] else "nein", ", ".join(r["loest_sod_konflikte"]) or "keine")
              for r in ergebnis["nicht_benoetigte_rollen"]]), ""]
     if ergebnis["teilweise_genutzte_rollen"]:
@@ -343,8 +349,11 @@ def einordnung_ungenutzt(ergebnis):
     n = ergebnis["anzahl_nicht_benoetigt"]
     kopf = "Keine Rolle wird nicht benötigt." if n == 0 else \
         f"{n} Rolle{'' if n == 1 else 'n'} {'wird' if n == 1 else 'werden'} nicht benötigt."
+    wechsel = any(r.get("nutzung_seit_wechsel") for r in ergebnis["nicht_benoetigte_rollen"])
     return (f"**{kopf}** Geprüft über {ergebnis['monate_mit_daten']} Monate Nutzungsdaten "
-            f"({ergebnis['zeitraum']}). Gehört eine Rolle zur Abteilung, den Entzug mit dem Fachbereich abstimmen.")
+            f"({ergebnis['zeitraum']})" + (", bei Rollen der alten Abteilung erst ab dem Abteilungswechsel"
+                                          if wechsel else "") +
+            ". Gehört eine Rolle zur Abteilung, den Entzug mit dem Fachbereich abstimmen.")
 
 
 def einordnung_antrag(ergebnis):

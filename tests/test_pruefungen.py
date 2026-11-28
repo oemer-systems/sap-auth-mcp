@@ -87,7 +87,7 @@ def test_kritische_berechtigungen():
 def test_risiko_uebersicht_zahlen():
     ergebnis = server.risiko_uebersicht()
     assert ergebnis["anzahl_befunde"] == 19
-    assert ergebnis["nach_prioritaet"] == {"hoch": 9, "mittel": 2, "prüfen": 8}
+    assert ergebnis["nach_prioritaet"] == {"hoch": 8, "mittel": 3, "prüfen": 8}
     assert len(ergebnis["abgesicherte_konflikte"]) == 1
 
 
@@ -100,10 +100,10 @@ def test_risiko_uebersicht_meldet_nicht_benoetigte_rolle_ohne_doppelung():
     rollenbefunde = ("Rolle außerhalb des Rollenkonzepts", "Rolle nicht benötigt")
     mmuster = [b for b in befunde if b["benutzer"] == "MMUSTER" and b["kategorie"] in rollenbefunde]
     assert len(mmuster) == 1
-    assert "Z_FI_ZAHLLAUF seit mindestens 13 Monaten" in mmuster[0]["detail"]
+    assert "Z_FI_ZAHLLAUF in 13 Monaten Nutzungsdaten (ab 2025-11) nie genutzt" in mmuster[0]["detail"]
     kbauer = [b for b in befunde if b["benutzer"] == "KBAUER" and b["kategorie"] in rollenbefunde]
     assert len(kbauer) == 1 and kbauer[0]["kategorie"] == "Rolle außerhalb des Rollenkonzepts"
-    assert "Z_S4_GP_PFLEGE seit" in kbauer[0]["detail"]
+    assert "Z_S4_GP_PFLEGE in 13 Monaten" in kbauer[0]["detail"]
 
 
 def test_risiko_uebersicht_ist_nach_prioritaet_sortiert():
@@ -190,7 +190,8 @@ def test_nicht_benoetigte_rollen():
     assert ergebnis["zeitraum"] == "2025-11 bis 2026-11"
     gefunden = {(e["benutzer"], e["rolle"]) for e in ergebnis["nicht_benoetigte_rollen"]}
     assert gefunden == {("MMUSTER", "Z_FI_ZAHLLAUF"), ("KBAUER", "Z_S4_GP_PFLEGE"),
-                        ("JBECKER", "Z_BC_ROLLENADMIN")}
+                        ("JBECKER", "Z_BC_ROLLENADMIN"), ("AWEBER", "Z_MM_EINKAUF"),
+                        ("AWEBER", "Z_MM_EINKAUF_FREIGABE"), ("AWEBER", "Z_MM_WARENEINGANG")}
 
 
 def test_nicht_benoetigte_rolle_kennt_abteilung_und_sod():
@@ -217,7 +218,7 @@ def test_zu_kurzer_zeitraum_wird_angehoben():
 def test_wie_lange_nicht_benoetigt():
     rollen = {e["benutzer"]: e for e in server.ungenutzte_rechte()["nicht_benoetigte_rollen"]}
     assert rollen["MMUSTER"]["zuletzt_genutzt"] is None
-    assert rollen["MMUSTER"]["nicht_benoetigt_seit"].startswith("mindestens 13 Monaten")
+    assert rollen["MMUSTER"]["nutzung"] == "in 13 Monaten Nutzungsdaten (ab 2025-11) nie genutzt"
 
 
 def test_keine_doppelmeldung_und_notfallbenutzer_ausgenommen():
@@ -338,3 +339,48 @@ def test_protokoll_enthaelt_zeitzone():
     zeile = json.loads(server.LOG.read_text(encoding="utf-8").strip().splitlines()[-1])
     zeit = datetime.fromisoformat(zeile["zeit"])
     assert zeit.tzinfo is not None
+
+
+# Abteilungswechsel: Für Rollen der alten Abteilung zählt nur die Nutzung seit dem Wechsel
+
+def test_nutzungsbeginn_bei_abteilungswechsel():
+    """AWEBER ist seit 01.10.2026 im Vertrieb. Für Einkaufsrollen zählt die Nutzung ab dem Wechsel,
+    für alle anderen Benutzer und Rollen der ganze Zeitraum von 13 Monaten."""
+    assert server.nutzungsbeginn("AWEBER", "Z_MM_EINKAUF") == "2026-10"
+    assert server.nutzungsbeginn("AWEBER", "Z_SD_VERTRIEB") == "2025-11"     # Rolle der neuen Abteilung
+    assert server.nutzungsbeginn("MMUSTER", "Z_FI_ZAHLLAUF") == "2025-11"    # Wechsel lange her
+    assert server.nutzungsbeginn("NWOLF", "Z_FI_AP_STAMMDATEN") == "2025-11" # ausgetreten, kein Wechsel
+
+
+def test_rollen_der_alten_abteilung_seit_wechsel_nicht_genutzt():
+    """Vor dem Wechsel hat AWEBER ME21N genutzt, danach nicht mehr. Das darf den Entzug nicht blockieren."""
+    rollen = {e["rolle"]: e for e in server.ungenutzte_rechte()["nicht_benoetigte_rollen"] if e["benutzer"] == "AWEBER"}
+    assert set(rollen) == {"Z_MM_EINKAUF", "Z_MM_EINKAUF_FREIGABE", "Z_MM_WARENEINGANG"}
+    assert rollen["Z_MM_EINKAUF"]["nutzung"] == "seit dem Abteilungswechsel am 2026-10-01 nicht genutzt (zuletzt 2026-09)"
+    option = server.loesungsvorschlaege("AWEBER")["optionen"][0]
+    assert option["rolle_entziehen"] == "Z_MM_EINKAUF" and option["davon_genutzt"] == []
+    assert option["rolle_nicht_benoetigt"] is True and option["nutzung_seit_wechsel"] == "2026-10-01"
+
+
+def test_entzug_aller_alten_rollen_warnt_vor_weiter_genutzter_transaktion():
+    """Einzeln ist jede Einkaufsrolle verzichtbar. Zusammen enthalten sie ME23N, das AWEBER im Vertrieb nutzt."""
+    einzeln = server.aenderung_anfragen("AWEBER", "rollen_entziehen", ["Z_MM_EINKAUF"])["antrag"]["begruendung"]
+    assert "Seit dem Abteilungswechsel am 2026-10-01 nicht genutzt: keine genutzte Transaktion fällt weg" in einzeln
+    alle = server.aenderung_anfragen("AWEBER", "rollen_entziehen",
+                                     ["Z_MM_EINKAUF", "Z_MM_EINKAUF_FREIGABE", "Z_MM_WARENEINGANG"])
+    assert "Achtung, genutzte Transaktionen fallen weg: ME23N" in alle["antrag"]["begruendung"]
+    wechsel = next(b for b in server.risiko_uebersicht()["befunde"] if b["kategorie"] == "Wechsel ohne Bereinigung")
+    assert "Seit dem Wechsel wurde keine dieser Rollen genutzt" in wechsel["detail"]
+    assert "fällt das weiter genutzte ME23N weg" in wechsel["detail"]
+
+
+
+def test_ausgetreten_und_gesperrt_ist_mittel_ausgetreten_und_aktiv_ist_hoch():
+    """Ein gesperrter Benutzer kann sich nicht anmelden, ein aktiver schon. Das zeigt die Priorität."""
+    befunde = {b["benutzer"]: b for b in server.risiko_uebersicht()["befunde"]
+               if b["benutzer"] in ("NWOLF", "DSCHULZ") and b["kategorie"].startswith("Ausgetreten")}
+    assert befunde["NWOLF"]["prioritaet"] == "mittel"
+    assert befunde["NWOLF"]["kategorie"] == "Ausgetreten, gesperrt, Rollen nicht entzogen"
+    assert befunde["NWOLF"]["detail"].startswith("Austritt am 2026-04-01. Rollen: ")
+    assert befunde["DSCHULZ"]["prioritaet"] == "hoch"
+    assert befunde["DSCHULZ"]["kategorie"] == "Ausgetreten, Benutzer aktiv"

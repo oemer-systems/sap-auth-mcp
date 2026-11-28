@@ -104,7 +104,7 @@ def test_risikoübersicht_jeder_befund_einmal_unter_seiner_prioritaet():
     assert "Wechsel ohne Bereinigung" not in hoch and "Wechsel ohne Bereinigung" in mittel
     assert text.count("| SoD-Konflikt |") == sum(b["kategorie"] == "SoD-Konflikt" for b in uebersicht["befunde"])
     assert f"**🔴 Hoch ({uebersicht['nach_prioritaet']['hoch']})**" in text
-    assert text.startswith("**Risikoübersicht: 19 Befunde, davon 9 hoch, 2 mittel und 8 zum Prüfen.**")
+    assert text.startswith("**Risikoübersicht: 19 Befunde, davon 8 hoch, 3 mittel und 8 zum Prüfen.**")
     assert "Kurze Einordnung." not in text  # der Freitext der KI wird ersetzt
 
 
@@ -153,7 +153,8 @@ def test_loesungen_zeigen_genutzte_transaktionen():
     """B4: Die KI schrieb, Z_MM_EINKAUF werde nicht genutzt. Anna Weber nutzt aber ME21N."""
     ergebnis = server.loesungsvorschlaege("AWEBER")
     text = agent.pruefe_antwort("Drei Optionen.", [], [("loesungsvorschlaege", ergebnis)])
-    assert "| ⭐ Z_MM_EINKAUF | SOD04, SOD05 | ME21N, XK03 | ME21N |" in text
+    assert "| ⭐ Z_MM_EINKAUF | SOD04, SOD05 | ME21N, XK03 | keine |" in text
+    assert "erst seit dem Abteilungswechsel am 01.10.2026" in text
     assert "Alternative: Ist keine Option passend" in text
 
 
@@ -169,12 +170,12 @@ def test_antragshinweis_steht_unter_der_tabelle():
 
 
 def test_loesungen_feste_einordnung_nennt_genutzte_transaktion():
-    """B4: Die KI schrieb, Z_MM_EINKAUF werde nicht genutzt. Der feste Satz nennt ME21N."""
+    """B4: Anna Weber hat ME21N nur vor dem Abteilungswechsel genutzt. Der feste Satz sagt das."""
     text = agent.pruefe_antwort("Z_MM_EINKAUF wird nicht genutzt.", [],
                                 [("loesungsvorschlaege", server.loesungsvorschlaege("AWEBER"))])
     assert "wird nicht genutzt" not in text
     assert text.startswith("**Empfehlung für AWEBER: Rolle Z_MM_EINKAUF entziehen.**")
-    assert "genutzte Transaktion ME21N weg" in text
+    assert "seit dem Abteilungswechsel am 01.10.2026 wurde keine ihrer Transaktionen genutzt" in text
     assert text.endswith(agent.HINWEIS_ANTRAG.strip())
 
 
@@ -194,7 +195,8 @@ def test_ungenutzte_rechte_abteilung_aus_dem_werkzeug():
     """B2: Die KI schrieb, Z_BC_ROLLENADMIN gehöre nicht zur Abteilung von JBECKER. Laut Werkzeug gehört sie dazu."""
     text = agent.pruefe_antwort("gehört nicht zur Abteilung", [], [("ungenutzte_rechte", server.ungenutzte_rechte(6))])
     assert text.startswith("> ℹ️ Hinweis: Zeitraum von 6 auf 13 Monate angehoben")
-    assert "**3 Rollen werden nicht benötigt.**" in text and "gehört nicht zur Abteilung" not in text
+    assert "**6 Rollen werden nicht benötigt.**" in text and "gehört nicht zur Abteilung" not in text
+    assert "bei Rollen der alten Abteilung erst ab dem Abteilungswechsel" in text
     assert "| Jonas Becker (JBECKER) | Z_BC_ROLLENADMIN |" in text and "| ja | SOD07 |" in text
 
 

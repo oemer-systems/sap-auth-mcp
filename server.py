@@ -115,9 +115,10 @@ def benutzer_rollen(benutzer: str) -> dict:
 
 @mcp.tool()
 def sod_pruefen(benutzer: str) -> dict:
-    """Prüft einen SAP-Benutzer gegen das SoD-Regelwerk (Funktionstrennung).
-    Das Ergebnis stammt aus fester Regellogik, nicht aus einer Einschätzung der KI.
-    Akzeptiert Benutzerkennung oder vollen Namen. Nur lesend."""
+    """Prüft, OB ein SAP-Benutzer SoD-Konflikte hat (Funktionstrennung), und listet sie auf.
+    Liefert keine Lösungen. Wird gefragt, wie Konflikte gelöst, behoben oder bereinigt werden,
+    nutze loesungsvorschlaege. Das Ergebnis stammt aus fester Regellogik, nicht aus einer
+    Einschätzung der KI. Akzeptiert Benutzerkennung oder vollen Namen. Nur lesend."""
     stamm = finde_benutzer(benutzer)
     if stamm is None:
         ergebnis = {"fehler": f"Benutzer {benutzer} nicht gefunden"}
@@ -389,7 +390,9 @@ def simuliere_entzug(benutzer: str, rollen: list[str]) -> dict:
 
 @mcp.tool()
 def loesungsvorschlaege(benutzer: str) -> dict:
-    """Ermittelt die besten Lösungen für die offenen SoD-Konflikte eines Benutzers. Simuliert den
+    """Beantwortet, WIE die SoD-Konflikte eines Benutzers gelöst, behoben oder bereinigt werden
+    ("Wie löse ich die Konflikte von ...", "Was soll ich tun?"). Enthält die Konflikte selbst
+    bereits, ein vorheriges sod_pruefen ist nicht nötig. Ermittelt die besten Lösungen. Simuliert den
     Entzug jeder einzelnen zugeordneten Rolle und sortiert: zuerst Rollen, die laut Nutzungsdaten
     nicht benötigt werden, dann Rollen außerhalb der eigenen Abteilung, dann nach Wirkung. Nutze
     dieses Werkzeug, wenn nach Lösungen gefragt wird, und nenne nur die Rollen aus seinem Ergebnis.
@@ -702,8 +705,25 @@ def aenderung_anfragen(benutzer: str,
 
     if "antrag" in ergebnis:
         ergebnis["antrag_text"] = antrag_text(ergebnis["antrag"])
+    # Die Kernaussage als fertiger Satz ganz vorne: kleine Modelle halten sich sonst an Nebenfelder
+    # wie status_in_sap und reimen sich eine eigene, falsche Begründung zusammen
+    ergebnis = {"kurzfassung": kurzfassung(stamm["name"], aktion, ergebnis), **ergebnis}
     protokolliere("aenderung_anfragen", eingabe, ergebnis)
     return ergebnis
+
+
+def kurzfassung(name, aktion, ergebnis):
+    """Formuliert das Ergebnis eines Änderungswunsches in einem Satz, den die KI übernehmen soll."""
+    was = AKTIONEN[aktion]
+    if ergebnis.get("zulaessig") is False:
+        satz = f"{was} für {name}: nicht zulässig. {ergebnis.get('begruendung', '')}"
+        if ergebnis.get("richtiges_vorgehen"):
+            satz += f" Richtig ist: {ergebnis['richtiges_vorgehen']}."
+    elif ergebnis.get("zulaessig") is True:
+        satz = f"{was} für {name}: zulässig. Ein Änderungsantrag ist vorbereitet."
+    else:
+        satz = f"{was} für {name}: {ergebnis.get('zulaessig')}. Ein Änderungsantrag ist vorbereitet."
+    return satz + " Es wurde nichts ausgeführt."
 
 
 REIHENFOLGE = {"hoch": 0, "mittel": 1, "prüfen": 2}

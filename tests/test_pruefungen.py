@@ -255,6 +255,16 @@ def test_ausgetretene_werden_nie_entsperrt():
         assert "antrag" not in ergebnis
 
 
+def test_kurzfassung_nennt_den_wahren_grund():
+    # Im Test hat die KI aus "status_in_sap: gesperrt" gefolgert, Entsperren sei "nicht möglich".
+    # Die Kurzfassung steht vorne und nennt den echten Grund: ausgetreten
+    ergebnis = server.aenderung_anfragen("Nina Wolf", "entsperren")
+    assert list(ergebnis)[0] == "kurzfassung"
+    assert "nicht zulässig" in ergebnis["kurzfassung"] and "ausgetreten" in ergebnis["kurzfassung"]
+    assert "gesperrt lassen" in ergebnis["kurzfassung"]
+    assert "nichts ausgeführt" in ergebnis["kurzfassung"]
+
+
 def test_entzug_ergibt_antrag_mit_begruendung():
     ergebnis = server.aenderung_anfragen("MMUSTER", "rollen_entziehen", ["Z_FI_ZAHLLAUF"])
     assert ergebnis["ausgefuehrt"] is False and ergebnis["zulaessig"] is True

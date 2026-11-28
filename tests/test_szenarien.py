@@ -16,6 +16,7 @@ RICHTIG = {
     "B1": ("ungenutzte_rechte", {}),
     "B2": ("ungenutzte_rechte", {"monate": 6}),
     "B3": ("loesungsvorschlaege", {"benutzer": "KBAUER"}),
+    "B3b": ("loesungsvorschlaege", {"benutzer": "Max Mustermann"}),
     "B4": ("loesungsvorschlaege", {"benutzer": "AWEBER"}),
     "C1": ("risiko_uebersicht", {}),
     "C2": ("risiko_uebersicht", {"inaktiv_tage": 365}),
@@ -70,3 +71,23 @@ def test_falsche_angaben_fallen_durch(monkeypatch):
     _, frage, erlaubt, pruefung = next(s for s in szenarien.SZENARIEN if s[0] == "A2")
     ok, _ = szenarien.pruefe("A2", frage, erlaubt, pruefung, "lokal")
     assert not ok
+
+
+def test_antworten_landen_in_einer_datei(monkeypatch, tmp_path):
+    """Mit --antworten schreibt der Katalog Frage, Werkzeugaufruf und Antworttext in berichte/."""
+    monkeypatch.setattr(szenarien, "BERICHT_ORDNER", tmp_path)
+    monkeypatch.setattr(agent, "frage_stellen",
+                        lambda v, f, m: ("Empfehlung: Z_S4_GP_PFLEGE entziehen.", [als_text(*RICHTIG["B3"])]))
+    assert szenarien.main(["B3", "--antworten"]) == 0
+    datei, = tmp_path.glob("szenarien-antworten-*.md")
+    text = datei.read_text(encoding="utf-8")
+    assert "## ✅ B3: Wie löse ich die Konflikte von KBAUER?" in text
+    assert 'loesungsvorschlaege({"benutzer": "KBAUER"})' in text
+    assert "Empfehlung: Z_S4_GP_PFLEGE entziehen." in text and "1 von 1 bestanden" in text
+
+
+def test_ohne_option_keine_datei(monkeypatch, tmp_path):
+    monkeypatch.setattr(szenarien, "BERICHT_ORDNER", tmp_path)
+    monkeypatch.setattr(agent, "frage_stellen", lambda v, f, m: ("x", [als_text(*RICHTIG["B3"])]))
+    szenarien.main(["B3"])
+    assert not list(tmp_path.glob("szenarien-antworten-*.md"))
